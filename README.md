@@ -13,3 +13,5 @@ All data sets are summarized by:
 - the report in .pdf (directly downloadable)
 - the reference or source of the data set
 - possible comments added (e.g. lipid fraction, growth, biotransformation)
+
+The file index_readme.Rmd is the main file to compile the database.
