@@ -1,0 +1,1028 @@
+---
+title: "**MOSAIC~bioacc~ REPORT**"
+date: "`r format(Sys.time(), '%Y-%m-%d')`"
+# output: pdf_document
+   
+    
+header-includes:
+    - \usepackage{xcolor}
+    - \usepackage{ulem}
+    - \usepackage{fancyhdr}
+    - \usepackage{geometry}
+    # - \usepackage{fontspec}
+---
+
+```{=tex}
+\fontsize{12}{22}
+\pagestyle{fancyplain}
+\rhead{\includegraphics[height=1cm]{logo_bioacc.png}}
+\lhead{\includegraphics[height=1cm]{logo_2.png}}
+```
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, dpi = 300)
+# library(kableExtra)
+
+```
+
+------------------------------------------------------------------------
+
+ 
+
+This report is provided by the MOSAIC~bioacc~ application available here: \newline   <https://mosaic.univ-lyon1.fr/bioacc>
+
+Contact: [sandrine.charles\@univ-lyon1.fr](mailto:sandrine.charles@univ-lyon1.fr)
+
+MOSAIC~bioacc~ uses the JAGS (version 4.3.0) and R (version 4.0.2) software, and in particular packages RJags (version `r packageVersion("rjags")`), jagsUI (version `r packageVersion("jagsUI")`) and Shiny (version `r packageVersion("shiny")`).  
+
+ 
+
+The MOSAIC~bioacc~ application is a turn-key web tool providing bioaccumulation factors (BCF/BSAF/BMF) from a toxicokinetic (TK) model fitted to accumulation-depuration data. It is designed to fulfil the requirements of regulators when examining applications for market authorization of active substances.  
+
+ 
+
+------------------------------------------------------------------------
+
+## **Data summary**
+
+```{r, results='asis'}
+cat(paste0("File used: ", concFileName, "\n"))
+cat("\n")
+if(length(whichexp) ==1){
+if("water" %in% whichexp){
+	cat(paste0("Exposure: ",Cexp$expw[[1]]," $\\mu g.mL^{-1}$"))
+}
+if("pwater" %in% whichexp){
+	cat(paste0("Exposure: ",Cexp$exppw[[1]]," $\\mu g.mL^{-1}$"))
+}
+	if("sediment" %in% whichexp){
+	cat(paste0("Exposure: ",Cexp$exps[[1]]," $\\mu g.g^{-1}$"))
+	}
+		if("food" %in% whichexp){
+	cat(paste0("Exposure: ",Cexp$expf[[1]]," $\\mu g.g^{-1}$"))
+	}
+}
+if(length(whichexp) == 4){
+	cat(paste0("Exposure: ",Cexp$expw[[1]]," $\\mu g.mL^{-1}$, ",Cexp$exppw[[1]]," $\\mu g.mL^{-1}$,",Cexp$exps[[1]]," $\\mu g.g^{-1}$,",Cexp$expf[[1]]," $\\mu g.g^{-1}$, "))
+}
+
+if(length(whichexp) == 3){
+	if("water" %in% whichexp && "pwater" %in% whichexp && "sediment" %in% whichexp){
+	cat(paste0("Exposure: ",Cexp$expw[[1]]," $\\mu g.mL^{-1}$, ",Cexp$exppw[[1]]," $\\mu g.mL^{-1}$,",Cexp$exps[[1]]," $\\mu g.g^{-1}$"))
+	}
+	if("water" %in% whichexp && "pwater" %in% whichexp && "food" %in% whichexp){
+	cat(paste0("Exposure: ",Cexp$expw[[1]]," $\\mu g.mL^{-1}$, ",Cexp$exppw[[1]]," $\\mu g.mL^{-1}$,",Cexp$expf[[1]]," $\\mu g.g^{-1}$"))
+	}
+	if("water" %in% whichexp && "sediment" %in% whichexp && "food" %in% whichexp){
+	cat(paste0("Exposure: ",Cexp$expw[[1]]," $\\mu g.mL^{-1}$, ",Cexp$exps[[1]]," $\\mu g.g^{-1}$,",Cexp$expf[[1]]," $\\mu g.g^{-1}$"))
+	}
+		if("pwater" %in% whichexp && "sediment" %in% whichexp && "food" %in% whichexp){
+	cat(paste0("Exposure: ",Cexp$exppw[[1]]," $\\mu g.mL^{-1}$, ",Cexp$exps[[1]]," $\\mu g.g^{-1}$,",Cexp$expf[[1]]," $\\mu g.g^{-1}$"))
+	}
+}
+
+if(length(whichexp) == 2){
+	if("water" %in% whichexp && "pwater" %in% whichexp ){
+	cat(paste0("Exposure: ",Cexp$expw[[1]]," $\\mu g.mL^{-1}$, ",Cexp$exppw[[1]]," $\\mu g.mL^{-1}$"))
+	}
+	if("water" %in% whichexp && "sediment" %in% whichexp){
+	cat(paste0("Exposure: ",Cexp$expw[[1]]," $\\mu g.mL^{-1}$, ",Cexp$exps[[1]]," $\\mu g.g^{-1}$"))
+	}
+	if("water" %in% whichexp && "food" %in% whichexp){
+	cat(paste0("Exposure: ",Cexp$expw[[1]]," $\\mu g.mL^{-1}$, ",Cexp$expf[[1]]," $\\mu g.g^{-1}$"))
+	}
+	if("pwater" %in% whichexp && "sediment" %in% whichexp){
+	cat(paste0("Exposure: ",Cexp$exppw[[1]]," $\\mu g.mL^{-1}$, ",Cexp$exps[[1]]," $\\mu g.g^{-1}$"))
+	}
+	if("pwater" %in% whichexp && "food" %in% whichexp){
+	cat(paste0("Exposure: ",Cexp$exppw[[1]]," $\\mu g.mL^{-1}$, ",Cexp$expf[[1]]," $\\mu g.g^{-1}$"))
+	}
+	if("sediment" %in% whichexp && "food" %in% whichexp){
+	cat(paste0("Exposure: ",Cexp$exps[[1]]," $\\mu g.g^{-1}$,",Cexp$expf[[1]]," $\\mu g.g^{-1}$"))
+	}
+}
+
+# cat(paste0("Exposure: ", concexp, " $\\mu g.g^{-1}$"))
+cat("\n")
+cat(" \n")
+cat("\n")
+cat(paste0("Accumulation phase duration: ", tacc, " ", timeFormat))
+cat("\n")
+cat("  \n")
+cat(paste0("Number of replicates: ", nbReplicates))
+cat("\n")
+cat("  \n")
+cat(paste0("Times: ", paste(as.character(unique(tp0)), collapse = ", "), "\n"))
+cat("\n")
+cat("  \n")
+cat(paste0("Exposure routes: "))
+cat("\n")
+cat(paste0("", whichexp))
+cat("\n")
+cat("  \n")
+cat(paste0("Elimination routes: "))
+cat("\n")
+cat(paste0("", whichelim))
+cat("\n")
+# incProgress(0.1, message = "Building report")
+
+```
+
+## **Bayesian inference**
+
+Three MCMC chains were used to estimate model parameters.
+
+```{r, results='asis'}
+cat("\n")
+cat(paste0("Number of iterations: ", niter))
+cat("\n")
+cat("  \n")
+cat(paste0("Thin: ", thin))
+# niterthin <- rbind(c(niter, thin))
+# knitr::kable(niterthin, row.names = FALSE, col.names = c("Iterations","Thin"),format.args = list(scientific = FALSE), digits = c(4, 15, 4, 4), padding = 2) 
+
+```
+
+\newpage
+
+## **TK Model**
+
+The TK model used for these calculations was:\
+
+
+```{r, results='asis', out.width="80%", message=FALSE, comment=FALSE,warning=FALSE,echo = FALSE, include=FALSE}
+# print(fitEquations2)
+			parkexpeq <- NULL
+			for(i in 1:nexp){
+				parkexpeq[i] <- paste0("ku", whichexpeq[i])
+			}
+
+				Ueq <- NULL
+				for(i in 1:nexp){
+					tmp <- paste0(parkexpeq[i], "\\,\u00D7\\, c",whichexpeq[i]," + ")
+					Ueq <- paste0(Ueq, tmp)
+				}
+				Ueq <- str_sub(Ueq, end = nchar(Ueq)-2)
+				Ueq <<- Ueq
+				# Ug <- paste0(Ug)
+
+				E <- NULL
+				if (elim == "yes"){
+					if (elim_growth == "no"){
+						E <- paste0("k_{ee}")
+					} else {
+						E <- paste0("k_{ee}+k_{eg}")
+					}}
+
+				if (nelim!=0){
+					ifelse(nmet!=0,  B <- paste0(E, "+", M),  B <- paste0(E))
+				} else {
+					ifelse(nmet!=0,  B <- paste0(M),  B <- "0")
+				}
+				# nexp, B, elim, Cexp, nmet, elim_growth, varmet, lendep, parkem,
+			if(elim == "yes"){
+				Eqacc <- NULL
+				Eqacc <- paste0(Eqacc, "dCp(t)/dt\\, = ",Ueq," \\,\u2212\\, (",B,") \\,\u00D7\\, Cp(t)\\,\\,\\,\\,\\,\\,for 0 \\leq t \\leq t_{c}")
+				Eqacc} else {
+					Eqacc <- NULL
+					Eqacc <- paste0(Eqacc, "dCp(t)/dt\\, = ",Ueq," \\,\\,\\,\\,\\,\\,for 0 \\leq t \\leq t_{c}")
+						}
+
+
+
+				if(elim == "yes"){
+					Eqdep <- NULL
+					Eqdep <- paste0(Eqdep, "dCp(t)/dt = \u2212\\, (", B,") \\,\u00D7\\, Cp(t)\\,\\,\\,\\,\\,\\,for t > t_{c} \n")
+				}
+
+				#Metabolites
+
+				if(nmet!=0){
+					Eqmet <- NULL
+					varmeteq <- str_replace(varmet, "Cmetpred", "Cm")
+					for(l in (lendep+1):(lendep+nmet)){
+						tmp <- paste0("d", varmeteq[l-lendep], "(t)/dt = ")
+						tmp <- paste0(tmp, parkm[l-lendep],"\\,\u00D7\\, Cp(t) \\,\u2212\\, ",parkem[l-lendep],"\\,\u00D7\\,", varmeteq[l-lendep], "(t)  ")
+						Eqmet <- paste0(Eqmet, tmp)
+					}
+					Eqmet <- str_sub(Eqmet, end = nchar(Eqmet)-2)
+					Eqmet <- paste0(Eqmet)
+
+					Eqmet <- unlist(str_split(Eqmet, "  "))
+				}
+
+				# Growth
+				if(elim_growth=="yes"){
+					EqGrowth <- NULL
+					tmp <- paste0("dG(t)/dt = k_{eg} \\,\u00D7\\, (g_{max} \\,\u2212\\, G(t))")
+					EqGrowth <- append(EqGrowth, tmp)
+				}
+
+				# Global
+				if(met == "yes"){
+					diffeq <- c(Eqacc, Eqdep, Eqmet)
+				} else {
+					diffeq <- c(Eqacc, Eqdep)
+				}
+
+				if(elim_growth == "yes"){
+					diffeq <- c(diffeq, EqGrowth)
+				}
+				texteq2 <<-diffeq
+
+				exprToLateX <- function(equations) {
+					for (i in 1:length(equations)){
+						s <- equations[i]
+						s <- str_replace(s, "(\n)", "\\")
+						s <- str_replace(s, "(.*)/(.*)\ (= .*)", "$\\\\frac{\\1}{\\2} \\3$")
+						s <- str_replace_all(s, "ku(\\w+)", "k_{u\\1}")
+						s <- str_replace_all(s, "ke(\\w+)", "k_{e\\1}")
+						s <- str_replace_all(s, "km(\\w+)", "k_{m\\1}")
+						s <- str_replace_all(s, "C(\\w+)", "C_{\\1}")
+						s <- str_replace_all(s, "c(\\w+)", "c_{\\1}")
+						s <- str_replace_all(s, "\\*", "\\\\times")
+						s <- str_replace_all(s, "\\*", "\\\\times")
+						s <- str_replace_all(s, "(for.*)", "$ \\1$")
+						# s <- str_replace_all(s, "<", "$\\\\leq$")
+						s <- str_replace_all(s, "≤", "$\\\\leq$")
+
+						equations[i] <- s
+					}
+
+					return(equations)
+				}
+		diffeq <- exprToLateX(diffeq)
+
+				###### For Report #########
+				exprToLateX22 <- function(equations) {
+
+
+					for (i in 1:length(equations)){
+						s <- equations[i]
+						s <- str_replace(s, "(\n)", "\\")
+						s <- str_replace(s, "(.*)/(.*)\ (= .*)", "$\\\\frac{\\1}{\\2} \\3$")
+						s <- str_replace_all(s, "ku(\\w+)", "k_{u\\1}")
+						s <- str_replace_all(s, "ke(\\w+)", "k_{e\\1}")
+						s <- str_replace_all(s, "km(\\w+)", "k_{m\\1}")
+						s <- str_replace_all(s, "C(\\w+)", "C_{\\1}")
+						s <- str_replace_all(s, "c(\\w+)", "c_{\\1}")
+						s <- str_replace_all(s, "×", "\\\\times")
+						s <- str_replace_all(s, "(for.*)", "$ \\1$")
+						# s <- str_replace_all(s, "<", "$\\\\leq$")
+						# s <- str_replace_all(s, "≤", "$\\\\leq$")
+						s <- str_replace_all(s, "−", "-")
+						s <- str_replace_all(s, "\\frac", "\frac")
+						equations[i] <- s
+					}
+					return(equations)
+				}
+
+				diffeq2 <<- exprToLateX22(texteq2)
+				diffeq2 <<- str_remove_all(diffeq2,"\\$")
+				diffeq2 <<- str_replace_all(diffeq2, "for", "for \\\\,\\\\,")
+				diffeq2 <<- str_remove_all(diffeq2,"\\fr")
+```
+
+```{r eq, results='asis', out.width="80%"}
+for(i in 1:length(diffeq2)){
+		cat("\n")
+ cat("$$",diffeq2[i],"$$",sep="")
+	cat("\n")
+}
+```
+
+with:
+
+```{r, results='asis'}
+cat("$t$: time (expressed in",paste0(timeFormat),")\n")
+cat("\n")
+cat("$t_c$: duration of the accumulation phase (expressed in",paste0(timeFormat),")\n")
+cat("\n")
+cat("$C_p(t)$: internal concentration of the parent compound at time (expressed in \\(\\mu g.g^{-1}\\))\n")
+cat("\n")
+cat("$k_{ee}$: elimination rates of excretion (expressed per",paste0(timeFormat),"\\(^{-1}\\))\n") 
+cat("\n")
+ if("expw" %in% cn){
+cat("$c_w$: exposure concentration of water route (expressed in \\(\\mu g.mL^{-1}\\))\n")
+cat("\n")
+cat("$k_{uw}$: uptake rate of water exposure (expressed per",paste0(timeFormat),"\\(^{-1}\\))\n") 
+cat("\n")
+}
+if("exppw" %in% cn){
+cat("$c_{pw}$: exposure concentration of pore water route (expressed in \\(\\mu g.mL^{-1}\\))\n")
+cat("\n")
+cat("$k_{upw}$: uptake rate of pore water exposure (expressed per",paste0(timeFormat),"\\(^{-1}\\))\n") 
+cat("\n")
+}
+if("exps" %in% cn){
+cat("$c_s$: exposure concentration of sediment route (expressed in \\(\\mu g.g^{-1}\\))\n")
+cat("\n")
+cat("$k_{us}$: uptake rate of sediment exposure (expressed per",paste0(timeFormat),"\\(^{-1}\\))\n") 
+cat("\n")
+}
+if("expf" %in% cn){
+cat("$c_f$: exposure concentration of food route (expressed in \\(\\mu g.g^{-1}\\))\n")
+cat("\n")
+cat("$k_{uf}$: uptake rate of food exposure (expressed per",paste0(timeFormat),"\\(^{-1}\\))\n") 
+cat("\n")
+}
+if(met == "yes"){
+cat("$C_{m\\ell}(t)$: internal concentration of metabolite \\(\\ell\\) (expressed in \\(\\mu g.g^{-1}\\))\n")
+cat("\n")
+cat("\\(\\ell\\): index of metabolites, \\(\\ell\\) = 1 ... \\(L\\) with \\(L\\) total number of metabolites \n")
+cat("\n")
+cat("$k_{m\\ell}$: metabolization rate of metabolite \\(\\ell\\) (expressed per",paste0(timeFormat),"\\(^{-1}\\))\n") 
+cat("\n")
+cat("$k_{em\\ell}$: elimination rates of metabolite \\(\\ell\\) (expressed per",paste0(timeFormat),"\\(^{-1}\\))\n") 
+cat("\n")
+}
+if(elim_growth == "yes"){
+cat("$G(t)$: Growth data according time $t$ (expressed in",paste0(gunit),")\n")
+cat("\n")
+cat("$k_{eg}$: elimination rates of growth (expressed per",paste0(timeFormat),"\\(^{-1}\\))\n") 
+cat("\n")
+cat("$g_{max}$: asymptotic weight at which growth is null (expressed per",paste0(gunit),")\n") 
+cat("\n")
+cat("$g_0$: weight at birth (expressed per",paste0(gunit),")\n") 
+cat("\n")
+}
+cat("\n")
+```
+
+
+
+```{r, results='asis', out.width="80%", message=FALSE, comment=FALSE,warning=FALSE,echo = FALSE, include=FALSE}
+
+ # print(BCFkeq)
+
+# if("water" %in% whichexp){
+# 	cat("$BCF_{k}=\\frac{k_{uw}}{k_{ee}}$")
+# 	if(processedBCFss){
+# 		cat("\n")
+# 		cat("$BCF_{k}=\\frac{k_{uw}}{k_{ee}}$")
+# 	}
+# }
+
+	diffeq <- NULL
+			E <- NULL
+			if (elim == "yes"){
+				if (elim_growth == "no"){
+					E <- paste0("k_{ee}")
+				} else {
+					E <- paste0("k_{ee}+k_{eg}")
+				}}
+			
+			if (nelim!=0){
+				ifelse(nmet!=0,  B <- paste0(E, "+", M),  B <- paste0(E))
+			} else {
+				ifelse(nmet!=0,  B <- paste0(M),  B <- "0")
+			}
+			# nexp, B, elim, Cexp, nmet, elim_growth, varmet, lendep, parkem,
+			
+			###################
+			## BCF equations ##
+			###################
+			if("expw" %in% cn){
+				Ug <- "k_{uw}"
+				
+				EqBCFk <- NULL
+				EqBCFk <- paste0(EqBCFk, "BCF_{k} = ",Ug," / ",B," \n")
+				
+				diffeq <- EqBCFk
+		
+			# if(processedBCFss == TRUE){
+				EqBCFss <- NULL
+				EqBCFss <- paste0(EqBCFss, "BCF_{ss} = C_{p}(t_{c}) / c_{w} \n")
+				EqBCFss
+				diffeq <- c(diffeq, EqBCFss)
+			# }
+			}
+		###### for lipids fraction accounted
+			
+			# if(lipidyn==TRUE){
+			# if("expw" %in% cn){
+			# 	Ug <- "k_{uw}"
+			# 	EqBCFkl <- NULL
+			# 	EqBCFkl <- paste0("BCF_{k_{l}} = \\frac{0.05}{L }  \\* \\frac{",Ug,"}{",B," } \n")
+			# 
+			# 	diffeq <- c(EqBCFk, EqBCFkl)
+			# }
+			# # if(processedBCFss == TRUE){
+			# 	EqBCFssl <- NULL
+			# 	EqBCFssl <- paste0("BCF_{ss_{l}} =  \\frac{0.05}{L}  \\* \\frac{C_{p}(t_{c})}{c_{w}} \n")
+			# 	diffeq <- c(diffeq, EqBCFss, EqBCFssl)
+			# # }
+			# }
+			
+			#####################
+			## BCFpw equations ##
+			#####################
+			if("exppw" %in% cn){
+				Ug <- "k_{upw}"
+				# Ug <- str_sub(Ug, end = nchar(Ug)-2)
+				
+				EqBCFkpw <- NULL
+				EqBCFkpw <- paste0(EqBCFkpw, "BCF_{pw,k} = ",Ug," / ",B,"")
+				EqBCFkpw
+				diffeq <- c(diffeq, EqBCFkpw)
+			
+			# if(processedBCFpwss == TRUE){
+				EqBCFsspw <- NULL
+				EqBCFsspw <- paste0(EqBCFsspw, "BCF_{pw,ss} = C_{p}(t_{c}) / c_{pw} \n")
+				EqBCFsspw
+				diffeq <- c(diffeq, EqBCFsspw)
+			# }
+			}
+			###### for lipids fraction accounted
+			# 	if(lipidyn==TRUE){
+			# 	if("exppw" %in% cn){
+			# 		Ug <- "k_{upw}"
+			# 		EqBCFkpwl <- NULL
+			# 		EqBCFkpwl <- paste0("BCF_{pw,k_{l}}  = \\frac{0.05}{L }  \\* \\frac{",Ug,"}{",B," } \n")
+			# 		diffeq <- c(diffeq, EqBCFkpw,EqBCFkpwl)
+			# 	}
+			# 	# if(processedBCFpwss == TRUE){
+			# 		EqBCFsspwl <- NULL
+			# 		EqBCFsspwl <- paste0("BCF_{ss_{l}} =  \\frac{0.05}{L}  \\* \\frac{C_{p}(t_{c})}{c_{pw}} \n")
+			# 		diffeq <- c(diffeq, EqBCFsspw,EqBCFsspwl)
+			# 	# }
+			# }
+			
+			#####################
+			## BSAF equations ##
+			#####################
+			if("exps" %in% cn){
+				Ug <- "k_{us}"
+				# Ug <- str_sub(Ug, end = nchar(Ug)-2)
+				Ug <- paste0(Ug)
+				
+				EqBSAFk <- NULL
+				EqBSAFk <- paste0(EqBSAFk, "BSAF_{k} = ",Ug," / ",B,"")
+				diffeq <- c(diffeq, EqBSAFk)
+			
+			# if(processedBSAFss == TRUE){
+				EqBSAFss <- NULL
+				EqBSAFss <- paste0(EqBSAFss, "BSAF_{ss} = C_{p}(t_{c}) / c_{s} \n")
+				diffeq <- c(diffeq, EqBSAFss)
+			# }
+			}
+			###### for lipids fraction accounted
+			
+			# if(lipidyn==TRUE){
+			# 	if("exps" %in% cn){
+			# 		Ug <- "k_{us}"
+			# 		EqBSAFkl <- NULL
+			# 		EqBSAFkl <- paste0("BSAF_{k_{l}}  = \\frac{0.05}{L }  \\* \\frac{",Ug,"}{",B," } \n")
+			# 		diffeq <- c(diffeq, EqBSAFk,EqBSAFkl)
+			# 	}
+			# 	# if(processedBSAFss == TRUE){
+			# 		EqBSAFssl <- NULL
+			# 		EqBSAFssl <- paste0("BSAF_{ss_{l}} =  \\frac{0.05}{L}  \\* \\frac{C_{p}(t_{c})}{c_{s}} \n")
+			# 		diffeq <- c(diffeq, EqBSAFss,EqBSAFssl)
+			# 	# }
+			# }
+			
+			#####################
+			## BMF equations ##
+			#####################
+			if("expf" %in% cn){
+				Ug <- "k_{uf}"
+				# Ug <- str_sub(Ug, end = nchar(Ug)-2)
+				
+				EqBMFk <- NULL
+				EqBMFk <- paste0(EqBMFk, "BMF_{k} = ",Ug," / ",B,"")
+				diffeq <- c(diffeq, EqBMFk)
+			
+			# if(processedBMFss == TRUE){
+				EqBMFss <- NULL
+				EqBMFss <- paste0(EqBMFss, "BMF_{ss} = C_{p}(t_{c}) / c_{f} \n")
+				diffeq <- c(diffeq, EqBMFss)
+			# }
+			}
+			###### for lipids fraction accounted
+			
+			# if(lipidyn==TRUE){
+			# 	if("expf" %in% cn){
+			# 		Ug <- "k_{uf}"
+			# 		EqBMFkl <- NULL
+			# 		EqBMFkl <- paste0("BMF_{k_{l}}  = \\frac{0.05}{L }  \\* \\frac{",Ug,"}{",B," } \n")
+			# 		diffeq <- c(diffeq, EqBMFk,EqBMFkl)
+			# 	}
+			# 	# if(processedBMFss == TRUE){
+			# 		EqBMFssl <- NULL
+			# 		EqBMFssl <- paste0("BMF_{ss_{l}} =  \\frac{0.05}{L}  \\* \\frac{C_{p}(t_{c})}{c_{f}} \n")
+			# 		diffeq <- c(diffeq, EqBMFss,EqBMFssl)
+			# 	# }
+			# }
+			
+			# For all factors
+			
+			
+			exprToLateX <- function(equationss) {
+				
+				
+				for (i in 1:length(equationss)){
+					s <- equationss[i]
+					s <- str_replace(s, "(\n)", "\\")
+					s <- str_replace(s, "$ (.*) =" , "(.*) =")
+					# s <- str_replace(s, "= (.*)/(.*) \\*", "= \\\\frac{\\1}{\\2} \\*")
+					
+					 s <- str_replace(s, "= (.*)/(.*)", "= \\\\frac{\\1}{\\2}")
+					 s <- str_replace_all(s, "\\*", "\\times")
+					 
+					# s <-  str_replace(s, "\\ } times", "} \\times")
+					s <- str_replace_all(s, "ku(\\w+)", "k_{u\\1}")
+					s <- str_replace_all(s, "ke(\\w+)", "k_{e\\1}")
+					s <- str_replace_all(s, "km(\\w+)", "k_{m\\1}")
+					s <- str_replace_all(s, "<", "$\\\\leq$")
+
+					# s <- str_replace(s, "\\* 0.05/L","\\times \\\\frac{0.05}{L}")
+					
+					equationss[i] <- s
+				}
+				
+				return(equationss)
+			}
+			
+			diffeqbf <- exprToLateX(diffeq)
+			diffeqbf
+			#Text equation in LaTex ####
+			textReport <<- diffeqbf
+```
+
+```{r, results='asis', out.width="80%"}
+cat("\n")
+cat("## **Bioaccumulation factor calculation** \n")
+
+cat("### **Calculations** \n")
+
+for(i in 1:length(textReport)){
+		cat("\n")
+ cat("$$",textReport[i],"$$",sep="")
+	cat("\n")
+}
+```
+
+```{r, fig.height=3, out.width="75%", results='asis', fig.hold='hold', fig.align='center'}
+if("water" %in% whichexp){
+	cat("### **Bioconcentration factor (BCF)**\n")
+	cat("\n")
+cat("#### BCF~k~ plot\n")
+cat("\n")
+
+suppressWarnings(print(bcfPlot))
+cat("\n")
+} 
+# incProgress(0.1, message = "Building report")
+```
+
+```{r, fig.height=3,out.width="75%", results='asis', fig.hold='hold', fig.align='center'}
+# if("water" %in% whichexp){
+#  if(processedBCFss){
+# 		cat("\n")
+# cat("#### BCF~ss~ plot\n")
+# cat("\n")
+# 
+# 	suppressWarnings(print(bcfssPlot))
+# 	cat("\n")
+# }else {
+# 	cat("\n")
+# 	cat("You didn't ask for the BCF~ss~")
+# 	cat("\n")
+# }
+# }
+```
+
+```{r, fig.height=3, out.width="75%", results='asis', fig.hold='hold', fig.align='center'}
+if("water" %in% whichexp){
+cat("\n")
+cat("#### BCF summary\n")
+cat("\n")
+# if(processedBCFss){
+# knitr::kable(bcfTablereport, row.names = FALSE, col.names = c("", "2.5%", "50%", "97.5%", "CV"))
+# }else{
+knitr::kable(bcfkTablereport, row.names = FALSE,  col.names = c("", "2.5%", "50%", "97.5%", "CV"))
+# }
+}
+# incProgress(0.1, message = "Building report")
+```
+
+```{r, fig.height=3, out.width="75%", results='asis', fig.hold='hold', fig.align='center'}
+if("pwater" %in% whichexp){
+cat("\n")
+cat("### **Bioconcentration factor (BCF) for pore water**\n")
+cat("#### BCFpw~k~ plot\n")
+cat("\n")
+suppressWarnings(print(bcfpwPlot))
+cat("\n")
+}
+# incProgress(0.1, message = "Building report")
+```
+
+```{r, fig.height=3,out.width="75%", results='asis', fig.hold='hold', fig.align='center'}
+# if("pwater" %in% whichexp){
+#  if(processedBCFpwss){
+# 		cat("\n")
+# 	cat("#### BCFpw~ss~ plot\n")
+# cat("\n")
+# 	suppressWarnings(print(bcfpwssPlot))
+# 	cat("\n")
+# }else {
+# 	cat("\n")
+# 	cat("You didn't ask for the BCFpw~ss~")
+# 	cat("\n")
+# }
+# }
+```
+
+```{r, fig.height=3, out.width="75%", results='asis', fig.hold='hold', fig.align='center'}
+if("pwater" %in% whichexp){
+cat("\n")
+cat("#### BCF~pw~ summary\n")
+cat("\n")
+# if(processedBCFpwss){
+# knitr::kable(bcfpwTablereport, row.names = FALSE,  col.names = c("", "2.5%", "50%", "97.5%", "CV"))
+# }else{
+knitr::kable(bcfpwkTablereport, row.names = FALSE,  col.names = c("", "2.5%", "50%", "97.5%", "CV"))
+# }
+}
+# incProgress(0.1, message = "Building report")
+```
+
+```{r, fig.height=3, out.width="75%", results='asis', fig.hold='hold', fig.align='center'}
+
+if("sediment" %in% whichexp){
+cat("\n")
+cat("### **Biote-sediment accumulation factor (BSAF)**\n")
+cat("#### BSAF~k~ plot\n")
+cat("\n")
+suppressWarnings(print(bsafPlot))
+cat("\n")
+} 
+# incProgress(0.1, message = "Building report")
+```
+
+```{r, fig.height=3,out.width="75%", results='asis', fig.hold='hold', fig.align='center'}
+# if("sediment" %in% whichexp){
+# if(processedBSAFss){
+# 	cat("\n")
+# cat("#### BSAF~ss~ plot\n")
+# cat("\n")
+# 	suppressWarnings(print(bsafssPlot))
+# 	cat("\n")
+# }else {
+# 	cat("\n")
+# 	cat("You didn't ask for the BSAF~ss~")
+# 	cat("\n")
+# }
+# }
+```
+
+```{r, fig.height=3, out.width="75%", results='asis', fig.hold='hold', fig.align='center'}
+if("sediment" %in% whichexp){
+cat("\n")
+cat("#### BSAF summary\n")
+cat("\n")
+# if(processedBSAFss){
+# knitr::kable(bsafTablereport, row.names = FALSE,  col.names = c("", "2.5%", "50%", "97.5%", "CV"))
+# }else{
+knitr::kable(bsafkTablereport, row.names = FALSE, col.names = c("", "2.5%", "50%", "97.5%", "CV"))
+# }
+}
+# incProgress(0.1, message = "Building report")
+```
+
+```{r, fig.height=3, out.width="75%", results='asis', fig.hold='hold', fig.align='center'}
+
+if("food" %in% whichexp){
+cat("\n")
+cat("#### BMF~k~ plot\n")
+cat("\n")
+suppressWarnings(print(bmfPlot))
+cat("\n")
+}
+# incProgress(0.1, message = "Building report")
+```
+
+```{r, fig.height=3,out.width="75%", results='asis', fig.hold='hold', fig.align='center'}
+# if("food" %in% whichexp){
+# if(processedBMFss){
+# 		cat("\n")
+# 	cat("#### BMF~ss~ plot\n")
+# cat("\n")
+# 	suppressWarnings(print(bmfssPlot))
+# 	cat("\n")
+# }else {
+# 	cat("\n")
+# 	cat("You didn't ask for the BMF~ss~")
+# 	cat("\n")
+# }
+# }
+```
+
+```{r, fig.height=3, out.width="75%", results='asis', fig.hold='hold', fig.align='center'}
+if("food" %in% whichexp){
+cat("\n")
+cat("#### BMF summary\n")
+cat("\n")
+# if(processedBMFss){
+# knitr::kable(bmfTablereport, row.names = FALSE,  col.names = c("", "2.5%", "50%", "97.5%", "CV"))
+# }else{
+knitr::kable(bmfkTablereport, row.names = FALSE,  col.names = c("", "2.5%", "50%", "97.5%", "CV"))
+# }
+}
+
+# incProgress(0.1, message = "Building report")
+```
+
+
+\normalsize
+
+
+## **Fitting results**
+
+### **Fit plot**
+
+```{r fitPlot, fig.margin = TRUE, fig.align = 'center', results='hide', echo = FALSE, warning = FALSE}
+suppressWarnings(print(fitPlot))
+
+# incProgress(0.1, message = "Building report")
+```
+
+
+### **Quantiles of estimated parameters**
+
+\Large
+
+```{r quantilesTable, results='asis'}
+
+quantilesTable <- NULL
+			quantilesTablelatex <- NULL
+			
+			for(i in params){
+				paramLateX <- getParamHTML(i)
+				paramUnit <- getParamUnitHTML(i, timeFormat)
+				quantilesTable <- rbind(quantilesTable, c(paramLateX, signif(quantile(mcmctot1[,i], probs = c(0.025, 0.5, 0.975)), digits = 4), paramUnit))
+			}
+			quantilesTable <<- quantilesTable
+			
+			for(i in params){
+				paramLateX <- getParamLateX(i)
+				paramUnit <- getParamUnit(i, timeFormat)
+				quantilesTablelatex <- rbind(quantilesTablelatex, c(paramLateX, signif(quantile(mcmctot1[,i], probs = c(0.025, 0.5, 0.975)), digits = 4), paramUnit))
+			}
+			quantilesTablelatex <<- quantilesTablelatex
+			
+cat("\n")
+knitr::kable(quantilesTablelatex, row.names = FALSE, booktabs = T)
+cat("\n")
+
+# incProgress(0.1, message = "Building report")
+	# cat("\\newpage")
+
+```
+
+\normalsize
+
+## **Goodness-of-fit criteria**
+
+```{r ppc, fig.width = 6, fig.height = 7, results='asis', fig.align='center', echo = FALSE, warning = FALSE, cache = FALSE, message = FALSE, comment = FALSE}
+
+	cat("\n")
+	cat("\n")
+	cat("### Posterior Predictive Check\n")
+	cat("\n")
+	cat("The PPC shows the observed values against their corresponding estimated predictions (black dots),
+	along with their 95% credible interval (vertical segments). If the fit is correct, we expect to see
+	95% of the data within the intervals. Ideally observations and predictions should coincide, so we would
+	expect to see black dots along the first bisector y = x (plain black line). The 95% credible intervals
+	are colored in green if they overlap this line, in red otherwise.\n")
+	cat("\n")
+	if(length(pardet)>5){
+		if(nmet==15){
+	grid.arrange(grobs = list(ppcPlot[[1]],ppcPlot[[2]],ppcPlot[[3]],ppcPlot[[4]],ppcPlot[[5]],ppcPlot[[6]]), ncol=2)
+	grid.arrange(grobs = list(ppcPlot[[7]],ppcPlot[[8]],ppcPlot[[9]],ppcPlot[[10]],ppcPlot[[11]],ppcPlot[[12]]), ncol=2)
+		grid.arrange(grobs = list(ppcPlot[[13]],ppcPlot[[14]],ppcPlot[[15]],ppcPlot[[16]]), ncol=2)
+		}
+		if(nmet==14){
+		grid.arrange(grobs = list(ppcPlot[[1]],ppcPlot[[2]],ppcPlot[[3]],ppcPlot[[4]],ppcPlot[[5]],ppcPlot[[6]]), ncol=2)
+		grid.arrange(grobs = list(ppcPlot[[7]],ppcPlot[[8]],ppcPlot[[9]],ppcPlot[[10]],ppcPlot[[11]],ppcPlot[[12]]), ncol=2)
+		grid.arrange(grobs = list(ppcPlot[[13]],ppcPlot[[14]],ppcPlot[[15]]), ncol=2)
+		}
+				if(nmet==13){
+		grid.arrange(grobs = list(ppcPlot[[1]],ppcPlot[[2]],ppcPlot[[3]],ppcPlot[[4]],ppcPlot[[5]],ppcPlot[[6]]), ncol=2)
+		grid.arrange(grobs = list(ppcPlot[[7]],ppcPlot[[8]],ppcPlot[[9]],ppcPlot[[10]],ppcPlot[[11]],ppcPlot[[12]]), ncol=2)
+		grid.arrange(grobs = list(ppcPlot[[13]],ppcPlot[[14]]), ncol=2)
+				}
+				if(nmet==12){
+		grid.arrange(grobs = list(ppcPlot[[1]],ppcPlot[[2]],ppcPlot[[3]],ppcPlot[[4]],ppcPlot[[5]],ppcPlot[[6]]), ncol=2)
+		grid.arrange(grobs = list(ppcPlot[[7]],ppcPlot[[8]],ppcPlot[[9]],ppcPlot[[10]],ppcPlot[[11]],ppcPlot[[12]]), ncol=2)
+		grid.arrange(grobs = list(ppcPlot[[13]]), ncol=2)
+				}
+			if(nmet==11){
+		grid.arrange(grobs = list(ppcPlot[[1]],ppcPlot[[2]],ppcPlot[[3]],ppcPlot[[4]],ppcPlot[[5]],ppcPlot[[6]]), ncol=2)
+		grid.arrange(grobs = list(ppcPlot[[7]],ppcPlot[[8]],ppcPlot[[9]],ppcPlot[[10]],ppcPlot[[11]],ppcPlot[[12]]), ncol=2)
+		}
+	if(nmet==10){
+	grid.arrange(grobs = list(ppcPlot[[1]],ppcPlot[[2]],ppcPlot[[3]],ppcPlot[[4]],ppcPlot[[5]],ppcPlot[[6]]), ncol=2)
+		grid.arrange(grobs = list(ppcPlot[[7]],ppcPlot[[8]],ppcPlot[[9]],ppcPlot[[10]],ppcPlot[[11]]), ncol=2)
+		}
+	if(nmet==9){
+		grid.arrange(grobs = list(ppcPlot[[1]],ppcPlot[[2]],ppcPlot[[3]],ppcPlot[[4]],ppcPlot[[5]],ppcPlot[[6]]), ncol=2)
+		grid.arrange(grobs = list(ppcPlot[[7]],ppcPlot[[8]],ppcPlot[[9]],ppcPlot[[10]]), ncol=2)
+	}
+			if(nmet==8){
+		grid.arrange(grobs = list(ppcPlot[[1]],ppcPlot[[2]],ppcPlot[[3]],ppcPlot[[4]],ppcPlot[[5]],ppcPlot[[6]]), ncol=2)
+		grid.arrange(grobs = list(ppcPlot[[7]],ppcPlot[[8]],ppcPlot[[9]]), ncol=2)
+	}
+	if(nmet==7){
+		grid.arrange(grobs = list(ppcPlot[[1]],ppcPlot[[2]],ppcPlot[[3]],ppcPlot[[4]],ppcPlot[[5]],ppcPlot[[6]]), ncol=2)
+		grid.arrange(grobs = list(ppcPlot[[7]],ppcPlot[[8]]), ncol=2)
+	}
+			if(nmet==6){
+		grid.arrange(grobs = list(ppcPlot[[1]],ppcPlot[[2]],ppcPlot[[3]],ppcPlot[[4]],ppcPlot[[5]],ppcPlot[[6]]), ncol=2)
+		grid.arrange(grobs = list(ppcPlot[[7]]), ncol=2)
+			}
+					if(nmet==5){
+		grid.arrange(grobs = list(ppcPlot[[1]],ppcPlot[[2]],ppcPlot[[3]],ppcPlot[[4]],ppcPlot[[5]],ppcPlot[[6]]), ncol=2)
+					}
+							if(nmet==4){
+		grid.arrange(grobs = list(ppcPlot[[1]],ppcPlot[[2]],ppcPlot[[3]],ppcPlot[[4]],ppcPlot[[5]]), ncol=2)
+	}
+									if(nmet==3){
+		grid.arrange(grobs = list(ppcPlot[[1]],ppcPlot[[2]],ppcPlot[[3]],ppcPlot[[4]]), ncol=2)
+									}
+		if(nmet==2){
+		grid.arrange(grobs = list(ppcPlot[[1]],ppcPlot[[2]],ppcPlot[[3]]), ncol=2)
+		}
+		if(elim_growth=="yes"){
+			grid.arrange(grobs = ppcPlotG, ncol=2)
+		}
+		
+		
+	} else {if(elim_growth=="yes") {ppcPlot <- grid.arrange(grobs = list(ppcPlot, ppcPlotG), ncol = 2)}
+		grid.arrange(grobs = ppcPlot, ncol = 2)
+		}
+cat("\n")
+	# incProgress(0.1, message = "Building report")
+```
+
+```{r pnp, fig.width = 7, fig.height = 7, results='asis', fig.align='center'}
+	cat("### Priors and posteriors\n")
+	cat("  \n")
+	cat("The prior distribution is represented by the gray area and the posterior distribution by
+	the orange area. The accuracy of the model parameter estimation can be visualized by
+	comparing prior and posterior distributions: the overall expectation is to get a narrower posterior distribution compared to the prior one, what reflects that data contributed enough to precisely estimate parameters.")
+	cat("\n")
+	if(length(pardet)>5){
+		grid::grid.draw(grid.arrange(grobs = plotsparam, ncol = 2))
+		grid::grid.draw(grid.arrange(grobs = plotssigma, ncol = 2))
+	} else {grid::grid.draw(densityPlotSave)}
+	
+	cat("\n")
+```
+
+```{r correlation, fig.width = 7, fig.height = 7, results='asis', fig.align='center', warning=FALSE, comment=FALSE, echo=FALSE, cache.comments=FALSE, cache=FALSE, message = FALSE}
+
+		cat("### Correlation between parameters\n")
+	cat("\n")
+	cat("If you want to see the coloured matrix giving a summary of parameter correlations, you need to import the corresponding figure directly from the application, page bottom, section “Downloads”, then choose Download an output and select “GOF” then “parameter correlation”. You can select the output format you prefer.")
+	cat("\n")
+		cat("\n")
+	cat("\n")
+
+	cat("Correlations between parameters are visualized by projecting the joint posterior distribution in a plot matrix with planes of parameter pairs (lower triangular elements), marginal posterior distribution of each model parameter (diagonal), and Pearson correlation coefficients (upper triangular elements). Correlations are expected to be low (reflected by “potatoid” shapes of density lines in orange); a leaning elliptical shape translates high correlations (positive if leaning to the right, negative if leaning to the left).\n")
+
+	# ggs_pairs(Scorrdet, lower = list(continuous = wrap("density", color = "#ff8c00")))
+ggs_pairs(Scorr,  lower = list(continuous = wrap("density", color = "#ff8c00")),
+		  upper = list(continuous = wrap("cor", size = 2))) +
+						 theme_grey(base_size = 8)
+
+```
+
+
+
+```{r psrf, fig.width = 4, fig.height = 4, results='asis', fig.align='center'}
+
+cat("\n")
+	cat("### Potential Scale Reduction Factors\n")
+	cat("\n")
+	cat("Convergence of the MCMC chains can be check with the Gelman-Rubin diagnostic expressed with the potential scale reduction factor (PSRF). Approximate convergence is diagnosed when the PSRF is below 1.01.\n")
+	cat("\n")
+	# psrfPlot
+		knitr::kable(psrf)
+
+	cat("\n")
+```
+
+```{r waic, fig.width = 4.5, fig.height = 2.5, results='asis', fig.align='center'}
+	
+
+	cat("\n")
+	cat("### Watanabe–Akaike information criterion\n")
+	cat("\n")
+	cat("  \n")
+		# if(processedWAIC==TRUE){
+	cat("Information criteria offer a computationally appealing way of estimating the generalization performance of the model. A fully Bayesian criterion is the widely applicable information criterion (WAIC) by Watanabe a penalized deviance statistics accounting for the uncertainty in the parameters and can be used also for singular models. WAIC is widely used in model comparison for a same dataset (<i>e.g.</i>, with or without k~ee~). Sub-models with lower WAIC values will be preferred. \n")
+	cat("\n")
+	cat("\\large\n")
+	cat("\n")
+	cat("\n")
+	# cat("\\begin{center}")
+	cat("\n")
+	cat("\n")
+	cat("WAIC = ", signif(waic.m1[1], digits=4),"\n", sep ="")
+	cat("\n")
+	cat("\n")
+	# cat("\\end{center}")
+	cat("\n")
+	cat("\n")
+	cat("\\normalsize\n")
+	cat("\n")
+	cat("\n")
+# 		} else {
+# 	cat("\n")
+# 	cat("You didn't ask for the WAIC.")
+# 	cat("\n")
+# }
+
+```
+
+
+```{r dic, fig.width = 4.5, fig.height = 2.5, results='asis', fig.align='center'}
+	
+
+	cat("\n")
+	cat("### Deviance Information Criterion\n")
+	cat("\n")
+	cat("  \n")
+		# if(processedDIC==TRUE){
+	cat("This criteria, denoted DIC, is a penalized deviance statistics accounting for the number of parameters for use in model comparison for a same dataset (<i>e.g.</i>, with or without k~ee~). Sub-models with lower DIC values will be preferred.  \n")
+	cat("\n")
+	cat("\\large\n")
+	cat("\n")
+	cat("\n")
+	# cat("\\begin{center}")
+	cat("\n")
+	cat("\n")
+	cat("DIC = ", dic,"\n", sep ="")
+	cat("\n")
+	cat("\n")
+	# cat("\\end{center}")
+	cat("\n")
+	cat("\n")
+	cat("\\normalsize\n")
+	cat("\n")
+	cat("\n")
+# 			} else {
+# 	cat("\n")
+# 	cat("You didn't ask for the DIC.")
+# 	cat("\n")
+# }
+
+```
+
+
+
+```{r traces, fig.width = 7, fig.height = 8, results='asis', fig.align='center'}
+	cat("\n")
+	cat("\n")
+	cat("### Traces of MCMC iterations\n")
+	cat("\n")
+	# if(processedTRACES == TRUE){
+	cat("A traceplot is an essential plot for assessing convergence and diagnosing of MCMC chains. It shows the time series of the sampling process leading to the posterior distribution. Different colors are used for each of the chains (here 3) to assess within-chain convergence.  \n")
+	cat("\n")
+	
+	if(length(pardet)>5){
+		print(tracesPlotdetk)
+		print(tracesPlotdetkm)
+		print(tracesPlotdetkem)
+	} else {print(tracesPlotdet)}
+	print(tracesPlotsto)
+	cat("\n")
+# 	} else {
+# 	cat("\n")
+# 	cat("You didn't ask for the MCMC traces.")
+# 	cat("\n")
+# }
+	
+	# incProgress(0.1, message = "Building report")
+	cat("\\newpage")
+```
+
+\large
+\newgeometry{vmargin={1cm}}
+
+```{r data, results='asis', fig.align='center'}
+ # if (input$datayn == "yes"){
+cat("## Data Table\n")
+cat("\n")
+  knitr::kable(dataTable, row.names = FALSE, format.args = list(scientific = FALSE), digits = c(4, 15, 4, 4), padding = 2) 
+
+# knitr::kable(dataTable, row.names = FALSE, format.args = list(scientific = FALSE), format="latex", booktabs=TRUE, digits = c(4, 15, 4, 4)) %>% 
+#   kable_styling(latex_options="scale_down")
+
+# }
+# setProgress(1, message = "Rendering report, please be patient")
+
+```
+\restoregeometry
