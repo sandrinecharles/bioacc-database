@@ -1,0 +1,413 @@
+---
+title: "Index of accumulation-depuration data collection in support of toxicokinetic modelling for testing in MOSAIC~bioacc~"
+author: "Aude Ratier & Sandrine Charles"
+date: "`r Sys.Date()`"
+urlcolor: orange
+linkcolor: orange
+citecolor: orange
+output: 
+bookdown::html_document2:
+toc: FALSE
+bibliography: mybib.bib
+csl: american-chemical-society.csl
+option: -\usepackage{lscape} -\usepackage{xcolor}     - \usepackage {hyperref}   - \usepackage{fancyhdr}
+    - \hypersetup {colorlinks = true, linkcolor = orange, urlcolor = orange}
+header-includes:
+    - \usepackage{xcolor}
+    - \usepackage{ulem}
+    - \usepackage{fancyhdr}
+    # - \usepackage{fontspec}
+---
+
+
+\fontsize{12}{22}
+\pagestyle{fancyplain}
+\rhead{\includegraphics[height=1cm]{logo_bioacc.png}}
+\lhead{\includegraphics[height=1cm]{logo_2.png}}
+
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, dpi = 300)
+```
+
+```{=html}
+<style type="text/css">
+.main-container {
+  max-width: 90%;
+  margin-left: auto;
+  margin-right: auto;
+}
+h2 {
+    color: orange;
+}
+.markdown-block a {
+    color: orange !important;
+}
+</style>
+```
+\newcommand{\blandscape}{\begin{landscape}}
+
+```{r fig-margin, echo = FALSE, align="right"}
+image_link <- function(image,url,...){
+  htmltools::a(
+    href=url,
+    htmltools::img(src=image,...)
+    )
+}
+image_link("logo_bioacc.png","http://mosaic.univ-lyon1.fr/bioacc",width="70px",align="right")
+```
+
+```{r , include = FALSE}
+
+# Working directory ####
+# setwd("~/Seafile/ANSES-bioacc/DATA-TESTS/UPDATE/archivage_index_dataset")
+ path <- "www/data/database/"
+# path of all data sets ####
+# pathdata <-  "~/Seafile/ANSES-bioacc/DATA-TESTS/UPDATE/archivage_index_dataset/dataset/"
+pathdata <- "www/data/database/dataset/"
+# path for all reports ####
+# pathreport <- "~/Seafile/ANSES-bioacc/DATA-TESTS/UPDATE/archivage_index_dataset/reports/"
+pathreport <- "www/data/database/reports/"
+
+# Packages ####
+library(stringr)
+library(RefManageR)
+library(bibtex)
+library(htmltools)
+library(readr)
+library(dplyr)
+library(DT)
+```
+
+## Indroduction
+
+This database contains a wide collection of raw data sets extracted from the scientific literature in support of TK modelling to be performed with the MOSAIC\textsubscript{bioacc} web application (<https://mosaic.univ-lyon1.fr/bioacc/>). More details on the database are given in the [companion paper](https://www.biorxiv.org/content/10.1101/2021.04.15.439942v1).
+
+All data sets are summarized by:\
+- the name of the file of the data set (directly downloadable)\
+- the organism tested (genus)\
+- the category of the organism (*e.g.* aquatic, terrestrial, etc.)\
+- the substance tested\
+- the time at the end of the accumulation phase ($t_{acc}$)\
+- the exposure route tested and for which we have data (*e.g.* water, sediment, food, pore water)\
+- the total number of data in the dataset (number of replicate(s))\
+- the kinetic bioaccumulation factor median value with its 95% credible intervals\
+- the report in .pdf (directly downloadable)\
+- the reference or source of the data set\
+- possible comments added (*e.g.* lipid fraction, growth, biotransformation)\
+
+## Your contribution
+
+If you want to contribute to this database in sharing your raw TK data, please contact us at [sandrine.charles\@univ-lyon1.fr](mailto:sandrine.charles@univ-lyon1.fr).
+
+## Database
+
+```{r message=FALSE, comment=FALSE, warning=FALSE, echo = FALSE, include=FALSE}
+if(file.exists("model.txt")) file.remove("model.txt")
+dataset = NULL
+file.name = NULL # gives the name files without format (.txt or .csv)
+files.reports = NULL
+species = NULL
+substance = NULL
+report = NULL
+reference = NULL
+duration = NULL
+comments = NULL
+exposure = NULL
+replicate = NULL
+colname = NULL
+met = NULL
+data = NULL
+npoint = NULL
+Cexp = NULL
+factor.conc = NULL
+l.fac.conc = NULL
+test = NULL
+npoints = NULL
+category = NULL
+tacc1 = NULL
+timeFormat1 = NULL
+# path of all data sets ####
+files <- list.files(pattern = ".csv") # file names
+files <- c(files, list.files(pattern = ".txt"))
+files <- sort(files) #reorder in alphabetic
+files <- files[-c(4:6,24)]
+
+ndata <- length(files) # number of data set
+# For windows, using PowerShell, rename all files by using: (do not forget to be in the good working directory)
+# cd C:/Users/Aude/documents/MOSAIC_BIOACC/DATA-TESTS/UPDATE/archivage_index_dataset/reports/ # working directory for PowerShell
+# get-childitem *.pdf | foreach { rename-item $_ $_.Name.Replace("2021-03-18_", "") }
+
+for (i in 1:ndata){
+  file.name[i] <-  str_replace_all(files[i], ".txt","")
+  file.name[i] <-  str_replace_all(file.name[i], ".csv","")
+  files.reports[i] <-list.files(pattern = paste0(file.name[i],".pdf")) # file names for report
+}
+
+files.reports <- unique(files.reports) #select only one file name report if duplicate
+
+# separate information available in the name file
+names <- sapply(file.name, function(x) str_split(x, "_"))
+
+
+# REFERENCES ####
+# browse references
+# setwd(path)
+bib <- ReadBib(file = "mybib.bib")
+# BibOptions(check.entries = FALSE, style = "markdown", bib.style = "alphabetic", cite.style = 'alphabetic')
+for (i in 1:ndata){
+     reference[i] <- c(names[[i]][4])
+   # reference[i] <- paste0("[@", reference[i],"]")
+     reference[i] <- RefManageR::TextCite(bib = bib,
+                                            paste0(reference[i]),
+                                            .opts = list(style = "html",
+                                                        max.names = 1, longnamesfirst=FALSE))
+
+
+     reference[i] <- str_replace(reference[i], ", et al.", HTML("<i> et al.</i>"))
+
+     reference[i] <- str_replace(reference[i], "'>", paste0("'target='_blank'>"))
+   # reference[i] <- paste0("<a href='#references'>",reference[i],"</a>")
+}
+
+
+# SPECIES, SUBSTANCE, DURATION, REPORT LINK, COMMENTS ####
+for (i in 1:ndata){
+  dataset[i] <- paste0("<a href='", files[i],"'target='_blank'>",files[i],"</a>")
+  species[i] <- names[[i]][1]
+  substance[i] <- c(names[[i]][2])
+  duration[i] <- c(names[[i]][3])
+    duration[i] <-  str_replace(duration[i], "y"," years")
+    duration[i] <-  str_replace(duration[i], "h"," hours")
+    duration[i] <-  str_replace(duration[i], "d"," days")
+    duration[i] <-  str_replace(duration[i], "w"," weeks")
+
+  report[i] <- paste0("<a href='", files.reports[i],"' target='_blank'>Link</a>")
+}
+
+# collect only tacc value
+for (i in 1:ndata){
+	tacc1[i] <- duration[i]
+    tacc1[i] <-  str_remove_all(tacc1[i]," years")
+    tacc1[i] <-  str_remove_all(tacc1[i], " hours")
+    tacc1[i] <-  str_remove_all(tacc1[i], " days")
+    tacc1[i] <-  str_remove_all(tacc1[i]," weeks")
+}
+tacc1 <- as.numeric(tacc1)
+
+# Create time units vector
+
+for (i in 1:ndata){
+    if(str_detect(duration[i],"years")==TRUE){timeFormat1[i] <-"years"}
+    if(str_detect(duration[i],"hours")==TRUE){timeFormat1[i] <-"hours"}
+    if(str_detect(duration[i],"days")==TRUE){timeFormat1[i] <- "days"}
+    if(str_detect(duration[i],"week")==TRUE){timeFormat1[i] <- "week"}
+}
+
+ # EXPOSURE ROUTE ####
+    #read exposure route in data set
+
+    # All dataset in a list
+for (i in 1:ndata){
+  # setwd(path)
+  if(str_detect(files[i],".csv")){data[[i]] <-  read_delim(files[i],
+                                                     delim = ";",
+                                                     col_types = cols(),
+                                                     escape_double = FALSE,
+                                                     trim_ws = FALSE)}
+  if(str_detect(files[i],".txt")){data[[i]] <- read_delim(files[i],
+                                                      delim = "\t",
+                                                      escape_double = FALSE, trim_ws = TRUE)}
+
+  # select exposure route
+ colname[[i]] <- colnames(data[[i]])
+
+  if("expw" %in% colname[[i]]){exposure[[i]] <- c("water") }
+    if("exppw" %in% colname[[i]]){exposure[[i]] <- c("pore water") }
+      if("exps" %in% colname[[i]]){exposure[[i]] <- c("sediment") }
+      if("expf" %in% colname[[i]]){exposure[[i]] <- c("food") }
+  exposure <- unlist(exposure)
+
+
+
+ # NUMBER OF POINTS ####
+   # replicate
+replicate[i] <- length(unique(data[[i]]$replicate)) #add condition by exp concentration
+	 # concentration of exposure
+  Cexp[[i]] <- data[[i]] %>%
+		filter_all(any_vars(! is.na(.))) %>%
+		filter(time != 0) %>%
+		select(starts_with("exp"))
+
+temp.Cexp <- data.frame(Cexp[[i]]) #temporary data frame instead of tibble for Cexp
+factor.conc[[i]] <- levels(factor(temp.Cexp[,1])) #levels of exposure concentration
+
+
+npoints[i] <- nrow(Cexp[[i]] %>% filter(Cexp[[i]] == factor.conc[[i]][1]))
+npoint[i] <- paste0(npoints[i], " (",replicate[i],")")
+
+ #add comments
+  comments[i] <- c(names[[i]][5])
+    # comments[i] <- str_replace_all(comments[i], "conc"," tested concentrations") #length(unique(Cexp)) or as.factor(Cexp)
+
+   if("growth" %in% colnames(data[[i]])){comments[i] <- paste0(comments[i], "growth dilution")}
+
+  # Metabolites ? ####
+if("concm1" %in% colnames(data[[i]])){comments[i] <- paste0(comments[i],"biotransformation")} #number of metabolites?
+  comments[i] <- str_replace_all(comments[i], "intermediate","intermediate size")
+  comments[i] <- str_replace_all(comments[i], "small","small size")
+  comments[i] <- str_replace_all(comments[i], "food","")
+  comments[i] <- str_replace_all(comments[i], "sediment","")
+  comments[i] <- str_replace_all(comments[i], "lipid","lipid fraction: 6.8%")
+    # comments[i] <- str_replace_all(comments[i], "conc"," tested concentrations")
+ if(length(factor.conc[[i]]) > 1){comments[i] <- paste0(comments[i], length(factor.conc[[i]])," tested concentrations")}
+
+comments[i] <- str_replace_all(comments[i], "NA","")
+}
+
+ # CATEGORY ####
+factor <- lapply(factor(species), levels)[[1]] # give all species
+for (i in 1:ndata){
+if("Asellus" %in% species[i]){category[i] <- c("aquatic invertebrate")}
+if("Axinella" %in% species[i]){category[i] <- c("seawater sponge")}
+if("Calanus" %in% species[i]){category[i] <- c("aquatic invertebrate")}
+if("Chaetopteryx" %in% species[i]){category[i] <- c("insect")}
+if("Chironomus" %in% species[i]){category[i] <- c("aquatic invertebrate")}
+if("Chlorella" %in% species[i]){category[i] <- c("aquatic algae")}
+if("Danio" %in% species[i]){category[i] <- c("fish")}
+if("Daphnia" %in% species[i]){category[i] <- c("aquatic invertebrate")}
+if("Eisenia" %in% species[i]){category[i] <- c("aquatic worm")}
+if("Ephemera" %in% species[i]){category[i] <- c("insect")}
+if("Gammarus" %in% species[i]){category[i] <- c("aquatic invertebrate")}
+if("Halophila" %in% species[i]){category[i] <- c("seawater plant")}
+if("Heptagenia" %in% species[i]){category[i] <- c("insect")}
+if("Hyalella" %in% species[i]){category[i] <- c("aquatic invertebrate")}
+if("Hydropsyche" %in% species[i]){category[i] <- c("insect")}
+if("Lumbriculus" %in% species[i]){category[i] <- c("aquatic worm")}
+if("Oncorhynchus" %in% species[i]){category[i] <- c("fish")}
+if("Oryzias" %in% species[i]){category[i] <- c("fish")}
+if("Physa" %in% species[i]){category[i] <- c("aquatic invertebrate")}
+if("Poecilus" %in% species[i]){category[i] <- c("insect")}
+if("Radix" %in% species[i]){category[i] <- c("aquatic invertebrate")}
+if("Snail" %in% species[i]){category[i] <- c("terrestrial invertebrate")}
+if("Solea" %in% species[i]){category[i] <- c("fish")}
+if("Tubifex" %in% species[i]){category[i] <- c("aquatic worm")}
+if("Planorbarius" %in% species[i]){category[i] <- c("aquatic invertebrate")}
+if("Enchytraeus" %in% species[i]){category[i] <- c("terrestrial worm")}
+
+}
+```
+
+```{r message=FALSE, comment=FALSE, warning=FALSE, echo = FALSE, include=FALSE}
+# fitPlot = NULL
+# BAF.name <- NULL
+# BAF50 <- NULL
+# BAF2.5 <- NULL
+# BAF97.5 <- NULL
+# 
+# for (x in 90:ndata){
+# # filename <- files[i]
+# # dataTable <- as_tibble(data[[i]])
+# # tacc <- tacc1[i]
+# # timeFormat <- timeFormat1[i] # Time unit
+# source("model_predict.r")
+# a <- print(paste0("Coffee is life!", x)) # to check the loop
+# 		#generate the report
+# 	# Variables for report
+# 	concFileName <- files[x]
+# 	nbReplicates <- as.numeric(replicate[x])
+# 	# knit in format .PDF
+# 	rmarkdown::render(input = "reportBIOACC_pdf.Rmd",
+#             output_format = "pdf_document")
+# a <- print(paste0("Hot coffee!", x)) # to check the loop
+# 	file.rename(from="reportBIOACC_pdf.pdf",
+#               to=paste("reports/", file.name[x],".pdf", sep=""))
+#   # knit in format .HTML
+# 	rmarkdown::render(input = "reportBIOACC_pdf.Rmd",
+#             output_format = "html_document")
+# 	print(paste0("Hot coffee!", x))
+# 	file.rename(from="reportBIOACC_pdf.html",
+#               to=paste("reports/", file.name[x],".html", sep=""))
+# 	
+# 	
+# 		if("exppw" %in% colnames(dataTable)){BAF.name[x] <- paste0("BCFpw")
+# BAF50[x] <- bcfpwMed
+# BAF2.5[x] <- 	bcfpwInf
+# BAF97.5[x] <- 	bcfpwSup
+# 		}
+# 	if("expw" %in% colnames(dataTable)){BAF.name[x] <- paste0("BCF")
+# BAF50[x] <- bcfMed
+# BAF2.5[x] <- bcfInf	
+# BAF97.5[x] <-bcfSup
+# 	}
+# 	if("exps" %in% colnames(dataTable)){BAF.name[x] <- paste0("BSAF")
+# BAF50[x] <- bsafMed
+# BAF2.5[x] <- bsafInf	
+# BAF97.5[x] <- bsafSup
+# 	}
+# 	if("expf" %in% colnames(dataTable)){BAF.name[x] <- paste0("BMF")
+# BAF50[x] <- bmfMed
+# BAF2.5[x] <- bmfInf	
+# BAF97.5[x] <- bmfSup
+# 	}
+# 
+# }
+
+# BAF.table <- as.data.frame(cbind(BAF.name,BAF50,BAF2.5,BAF97.5))
+# write.csv(BAF.table,"BAF_table.csv", row.names = FALSE)
+
+# BAF
+# BAF <- NULL
+# BAF.table <- read_delim("baf.txt", "\t", escape_double = FALSE,
+#     col_types = cols(median = col_number(),
+#         `2,5` = col_number(), `97,5` = col_number()),
+#     trim_ws = TRUE)
+# for (i in 1:length(file.name)){
+#   BAF[i] <- HTML(paste0(BAF.table[i,2]), "</br>", paste0("[",BAF.table[i,3]," - ",BAF.table[i,4],"]"))
+# }
+# write.csv(BAF,"BAF.csv", row.names = FALSE)
+
+library(readr)
+BAF <- as.data.frame(read_csv("BAF.csv"))
+BAF <- BAF[,1]
+
+```
+
+```{r message=FALSE, comment=FALSE, warning=FALSE, echo = FALSE, include=FALSE}
+#create the data frame
+datatable <- NULL
+datatable <- cbind.data.frame(dataset,paste0("<i>",species,"</i>"),  category, substance, duration, exposure, npoint, BAF, report, reference, comments)
+colnames(datatable)<-c("dataset","genus","category", "substance", "duration of accumulation", "exposure route", "n (replicate)","Kinetic biaccumulation factor", "report", "reference", "comments")
+
+ # write.csv(datatable,"datatable.csv", row.names = FALSE)
+
+# View(data)
+
+```
+
+```{r echo=FALSE}
+# datatable <- read_csv("datatable.csv")
+# save(datatable,file="save")
+# load("save")
+DT::datatable(datatable, escape = FALSE, rownames = FALSE, options = list(
+  pageLength=10,fixedHeader = TRUE, fixedHeader.header = TRUE, columnDefs =
+                           list(list(className = 'dt-center',
+                                     targets = 1:9))), extensions = 'FixedHeader')
+# datatable <<- datatatable
+# datatable(datatable, class = 'cell-border stripe')
+
+```
+
+```{r message=FALSE, comment=FALSE, warning=FALSE, echo = FALSE, include=FALSE}
+# library(kableExtra)
+# kbl(data) %>%
+#   kable_paper() %>%
+#   scroll_box(width = "200%", height = "200px")
+
+```
+
+<!-- ## References -->
+
+```{r results = "asis", echo = FALSE, warning=FALSE}
+# PrintBibliography(bib, .opts = list(check.entries = FALSE, sorting = "anyt"))
+```
