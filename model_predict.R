@@ -431,8 +431,12 @@ getParamUnitHTML <- function(param, unit){
 
 filename <- files[x]
 dataTable <- as_tibble(data[[x]])
-tacc <- tacc1[x]
+tacc <- as.numeric(tacc1[x])
 timeFormat <- timeFormat1[x] # Time unit
+
+# if(str_detect(filename,"Salmo")){
+# 	elim_data <- "no"
+# }
 
 # 2. Define variables ####
 Cexp <- dataTable %>%
@@ -445,6 +449,21 @@ if(filename=="Enchytraeus_La_14d_Huang2020.txt"){
 }else{
 concexp <- concexp[[1]]
 }
+
+if(str_detect("Oliver1983",file.name[x])==TRUE){
+	concexp <- concexp[[1]]	
+	# tacc <- 105 #if concexp[[2]]
+}
+
+# if(filename=="Salmo_1,2,3-TCB_119d_Oliver1983.csv"){
+# 	concexp <- concexp[[2]]
+# }
+
+if(filename=="Enchytraeus_AgNO3_Topuz2015.txt"){
+	concexp <- 0.037
+}
+
+concexp <- concexp[[1]]
 
 whichexp <- str_remove(colnames(Cexp), pattern = "exp") # Which exposure routes
 if("w" %in% whichexp) whichexp <- str_replace(whichexp, "w", "water")
@@ -459,25 +478,27 @@ if(length(Cexp)==1){
     dataTable <- dataTable %>% filter(exps == concexp) }
   if (whichexp == "food"){
     dataTable <- dataTable %>% filter(expf == concexp) }
-  if (whichexp == "pwater"){
+  if (whichexp == "pore water"){
     dataTable <- dataTable %>% filter(exppw == concexp) }
 } # select data for the selected exposure concentration
 
 if (length(Cexp)!=1){
   if (whichexp == "water"){
     dataTable <- dataTable %>%
-      filter(expw == concexp | exps == concexp)
+      filter(expw == concexp)
     
     Cexp <- Cexp %>%
-      filter(expw == concexp | exps == concexp)
+      filter(expw == concexp)
   }
-  if (whichexp == "sediment"){
-    dataTable <- dataTable %>%
-      filter(exps == concexp)
-    
-    Cexp <- Cexp %>%
-      filter(exps == concexp)
-  }
+  # if (whichexp == "sediment"){
+  #   dataTable <- dataTable %>%
+  #     filter(exps == concexp)
+  #   
+  #   Cexp <- Cexp %>%
+  #     filter(exps == concexp)
+  # }
+	
+	
   
 }
 
@@ -490,18 +511,34 @@ max <- max(na.omit(dataTable$conc))
 concmax <- 5*max
 
 # and we have to remove this data
-# Cobs <- filter(Cobs, Cobs!=max(Cobs))
-dataTable <- dataTable %>%
-  filter_all(any_vars(! is.na(.))) %>%
-  filter(is.na(conc)| conc!= max) 
+ 
+ Cobs <- filter(dataTable, conc!=max(unique(conc)))
+ 
+# if(length(dataTable$conc==max)>1){
+# 	testttt <- dataTable %>%
+# 		filter(conc==max)
+# 	testttt <- testttt[-1,]
+# 	
+# 	dataTable2 <- dataTable %>%
+# 		filter_all(any_vars(! is.na(.))) 
+# 	
+# 	dataTable <- filter(dataTable2,dataTable2!=testttt[[1]])
+# 	
+# }else{
+#  
+# dataTable <- dataTable %>%
+#   filter_all(any_vars(! is.na(.))) %>%
+#   filter(is.na(conc)| conc!= max)
+# }
 
 # preparation for priors data about growth data
 if("growth" %in% colnames(dataTable)){
   maxg <- max(na.omit(dataTable$growth))
   gmaxsup <- 3*maxg
-  dataTable <- dataTable %>%
-    filter_all(any_vars(! is.na(.))) %>%
-    filter(is.na(growth)| growth!= maxg)}
+#   dataTable <- dataTable %>%
+#     filter_all(any_vars(! is.na(.))) %>%
+#     filter(is.na(growth)| growth!= maxg)
+  }
 
 # All observed internal concentrations for t > 0
 # create a temporary table (in order to avoid Na values)
@@ -1402,7 +1439,7 @@ if(elim_data == "no"){
   Cpred <- as.data.frame(Cpredp)
   colnames(Cpred) <- c("CpredQ2.5", "CpredQ50", "CpredQ97.5")
   Qpred <- cbind(time, Cpred)
-  
+
   if(elim_growth == "yes"){
     time <- vtg
     Gpred <- cbind(m1$q2.5$Gobsp, m1$q50$Gobsp, m1$q97.5$Gobsp)
@@ -1416,22 +1453,22 @@ if(elim_data == "yes"){
   Cpredp <- cbind(m1$q2.5$Cobsp, m1$q50$Cobsp, m1$q97.5$Cobsp)
   Cpred <- as.data.frame(Cpredp)
   colnames(Cpred) <- c("CpredQ2.5", "CpredQ50", "CpredQ97.5")
-  
+
   Cpreddep <- cbind(m1$q2.5$Cobspdep, m1$q50$Cobspdep, m1$q97.5$Cobspdep)
   Cpred <- as.data.frame(rbind(Cpredp,Cpreddep))
   colnames(Cpred) <- c("CpredQ2.5", "CpredQ50", "CpredQ97.5")
   Qpred <-  cbind(time,Cpred)
-  
+
   if(nmet!=0){
     for(k in 1:nmet){
       Cpredpm1 <- cbind(m1$q2.5[[paste0("Cobsp",k+1)]][,k+1], m1$q50[[paste0("Cobsp",k+1)]][,k+1], m1$q97.5[[paste0("Cobsp",k+1)]][,k+1])
       Cpreddepm1 <- cbind(m1$q2.5[[paste0("Cobspdep",k+1)]][,k+1], m1$q50[[paste0("Cobspdep",k+1)]][,k+1], m1$q97.5[[paste0("Cobspdep",k+1)]][,k+1])
       Cpredm <- as.data.frame(rbind(Cpredpm1,Cpreddepm1))
       colnames(Cpredm) <- c(paste0("Cmetpred",k,"Q2.5"), paste0("Cmetpred",k,"Q50"), paste0("Cmetpred",k,"Q97.5"))
-      
+
       Qpred <- cbind(Qpred, Cpredm)
     }
-  }  	
+  }
   Qpred
   if(elim_growth == "yes"){
     time <- vtg
@@ -1440,14 +1477,14 @@ if(elim_data == "yes"){
     colnames(Gpred) <- c("GpredQ2.5", "GpredQ50", "GpredQ97.5")
     QpredG <-  cbind(time,Gpred)
   }
-  
+
 }
 
 
 # if negative values in Qpred, replace by 0
 Qpred[Qpred < 0] <- 0
 
-# for QpredG 
+# for QpredG
 if(elim_growth == "yes"){
   QpredG[QpredG < 0] <- 0
 }
@@ -1465,7 +1502,7 @@ if(elim_growth == "yes"){
   data2plot <- dataTable %>%
     select("time" | contains("conc") | "growth")
   QpredG <- as.data.frame(QpredG)
-  
+
 }else{
   data2plot <- dataTable %>%
     select("time" | contains("conc"))
@@ -1487,7 +1524,7 @@ for(k in 1:nplots){
       title <- "Parent"
     }else{
       title <- paste0("Metabolite ", (k-1))
-    } 
+    }
     df <- as.data.frame(data2plot[,c(1, k+1)])
     quant <- Qpred[,str_detect(colnames(Qpred), pattern = vn[k])]
     tmp <- ggplot() +
@@ -1506,7 +1543,7 @@ for(k in 1:nplots){
                  aes(x = df[,1], y = df[,2]),
                  size = 1.5, col = "black") +
       theme_classic() +
-      labs(x = paste0("Time (", timeFormat,")"), y = expression("Concentration (mu g.g^{-1})"), title = title)
+      labs(x = paste0("Time (", timeFormat,")"), y = expression(Concentration (mu ~g.g^-1)), title = title)
     assign(paste0("g", k), tmp, envir = .GlobalEnv)
     plots[[paste0("g", k)]] <<- tmp
   })
@@ -1536,7 +1573,7 @@ if(elim_growth == "yes"){
                size = 1.5, col = "black") +
     theme_classic() +
     labs(x = paste0("Time (", timeFormat,")"), y = paste0("Growth (", gunit,")"), title = "Growth")
-  
+
   plotG <<- list("gg"=tmp)
   grid.arrange(grobs=plotG, ncol = 1, nrow = 1)
   fitPlot <<- c(plots, plotG)
@@ -1573,7 +1610,7 @@ whiskerplot(m1, params, quantiles=c(0.025,0.975), zeroline=TRUE)
 
 # 8. BIOACCUMULATION FACTORS ####
 
-lenp <<- nrow(mcmctot1) 
+lenp <<- nrow(mcmctot1)
 ### if BCF directly estimated in the inference process
 
 
@@ -1584,11 +1621,11 @@ lenp <<- nrow(mcmctot1)
 ########################
 #Only when exposure by water because BCF, otherwise calculate other bioaccumulation factors
 #add if exposure by water in data, calcultae BCF
-
+if("water" %in% whichexp){
 if("water" %in% whichexp & elim == "yes"){
 	Ubcf <- m1$sims.list$kuw
 	Ebcf <- m1$sims.list$kee
-	
+
 	#WITHOUT GROWTH
 	if(elim_growth == "no"){
 		if(nmet == 0){
@@ -1598,16 +1635,16 @@ if("water" %in% whichexp & elim == "yes"){
 			for(i in 1:nmet){
 				Mbcf <- array(0, dim = lenp)
 				Mbcf <- Mbcf+m1$sims.list[[paste0(parkem[i])]]
-				
+
 				bcf <<- Ubcf/Ebcf+Mbcf
 			}
 		}
 	}
-	
+
 	#WITH GROWTH
 	if(elim_growth == "yes"){
 		Ebcf <- m1$sims.list$kee+m1$sims.list$keg
-		
+
 		if(nmet == 0){
 			bcf <<- Ubcf/Ebcf
 		}
@@ -1619,17 +1656,17 @@ if("water" %in% whichexp & elim == "yes"){
 			}
 		}
 	}
-	
+
 	#removing outliers
-	
-	bcf <- bcf[-which(bcf%in%boxplot(bcf)$out)]
-	pdf(NULL)
+
+	 bcf <- bcf[-which(bcf%in%boxplot(bcf)$out)]
+	# pdf(NULL)
 	bcf <<- na.omit(bcf)
 	# if bcf is empty with removed outliers
 	if(is_empty(bcf)==TRUE){
 		Ubcf <- m1$sims.list$kuw
 		Ebcf <- m1$sims.list$kee
-		
+
 		#WITHOUT GROWTH
 		if(elim_growth == "no"){
 			if(nmet == 0){
@@ -1639,16 +1676,16 @@ if("water" %in% whichexp & elim == "yes"){
 				for(i in 1:nmet){
 					Mbcf <- array(0, dim = lenp)
 					Mbcf <- Mbcf+m1$sims.list[[paste0(parkem[i])]]
-					
+
 					bcf <<- Ubcf/Ebcf+Mbcf
 				}
 			}
 		}
-		
+
 		#WITH GROWTH
 		if(elim_growth == "yes"){
 			Ebcf <- m1$sims.list$kee+m1$sims.list$keg
-			
+
 			if(nmet == 0){
 				bcf <<- Ubcf/Ebcf
 			}
@@ -1659,39 +1696,40 @@ if("water" %in% whichexp & elim == "yes"){
 					bcf <<- Ubcf/Ebcf+Mbcf
 				}
 			}
-		}			
+		}
 	}
-	
+
 	###################################
-	
+
 	# distributions of BCF
 	bcfMed <<- round(quantile(bcf, probs = 0.5), digits = 0)
 	bcfInf <<- round(quantile(bcf, probs = 0.025), digits = 0)
 	bcfSup <<- round(quantile(bcf, probs = 0.975), digits = 0)
-	
+
 	if(max(bcf) < 1){
 		bcfMed <<- round(quantile(bcf, probs = 0.5), digits = 4)
 		bcfInf <<- round(quantile(bcf, probs = 0.025), digits = 4)
-		bcfSup <<- round(quantile(bcf, probs = 0.975), digits = 4)	
+		bcfSup <<- round(quantile(bcf, probs = 0.975), digits = 4)
 	}
-	
+
 	CVw <<- NULL
 	CVw <<- formatC((as.numeric(bcfSup)-as.numeric(bcfInf))/(4*(as.numeric(bcfMed))), digits=2)
 	CVw <<- as.numeric(CVw)
 	CVw <<- as.data.frame(CVw, row.names = "CV")
-	
+
 	bcfk <<- c("<p><b>BCF<sub>k</sub></b></p>", paste0("<p>", bcfInf, "</p>"), paste0("<p>", bcfMed, "</p>"), paste0("<p>", bcfSup, "</p>"), ifelse(CVw <= formatC(0.500, digits=2), paste0("<p style='color:#63ad00;'>", CVw, "</p>"), paste0("<p style='color:red;'>", CVw, "</p>")))
-	
+
 	bcfkreport <<- c("<b>BCF<sub>k</sub></b>", bcfInf, bcfMed, bcfSup, CVw)
-	
+
 	data4bcf <- with(density(bcf), data.frame(x, y))
 	data4bcf <- na.omit(data4bcf[is.finite(rowSums(data4bcf)),])
 	# data4bcf<-data4bcf[-which(data4bcf$x<0),]
-	# 
+	#
 	# bcfPlot <<- ggplot(data = data4bcf, mapping = aes(x = x, y = y), xlab()) +
 	# 	geom_line( color = "#ee7202", size = 1) +
 	# 	labs(x = "BCFk", y = "Density")
-	
+
+
 	bcfPlot <<- ggplot(data = data4bcf, mapping = aes(x = x, y = y), xlab()) +
 		geom_line( color = "#ee7202", size = 1) +
 		labs(x = expression(paste(BCF[k])), y = "Density") +
@@ -1712,7 +1750,7 @@ if(elim=="no"){
 		bcfSup <<- NA
 		bcfk <<- c("<p><b>BCF<sub>k</sub></p></b>", bcfInf, bcfMed, bcfSup, CVw)
 		bcfkreport <<- c("<b>BCF<sub>k</sub></b>", bcfInf, bcfMed, bcfSup, CVw)
-		
+
 		bcfPlot <<-	ggplot() +
 			annotate("text", x = 4, y = 25, size=5, label = paste("\n   Elimination is null, BCFk plot can not be displayed. \n If steady-state is reached at the end of the accumulation phase, \n you can ask the BCFss plot.\n")) +
 			theme_void()
@@ -1724,7 +1762,7 @@ if(elim=="no"){
 # ########################
 # ######### BCFss ########
 # ########################
-# 
+#
 # if("water" %in% whichexp){
 # 	#Cpred for steady state (equal at tacc)
 # 	Cpredss <<- m1$sims.list$Cobsp[,length(vtacc),1]
@@ -1732,13 +1770,13 @@ if(elim=="no"){
 # 	#removing outliers
 # 	bcfss <- bcfss[-which(bcfss%in%boxplot(bcfss)$out)]
 # 	#Calculations of BCF at steady state
-# 	bcfss <<- na.omit(bcfss)   
-# 	
+# 	bcfss <<- na.omit(bcfss)
+#
 # 	#obtain the quantiles
 # 	bcfssMed <<- round(quantile(bcfss, probs = 0.5), digits = 0) #50%
 # 	bcfssInf <<- round(quantile(bcfss, probs = 0.025), digits = 0) #2.5%
 # 	bcfssSup <<- round(quantile(bcfss, probs = 0.975), digits = 0) #97.5%
-# 	
+#
 # 	if(max(bcfss) < 1){
 # 		bcfssMed <<- round(quantile(bcfss, probs = 0.5), digits = 4) #50%
 # 		bcfssInf <<- round(quantile(bcfss, probs = 0.025), digits = 4) #2.5%
@@ -1747,15 +1785,15 @@ if(elim=="no"){
 # 	#prepare the data for the density plot
 # 	data4bcfss <<- with(density(bcfss), data.frame(x, y))
 # 	data4bcfss <<- na.omit(data4bcfss[is.finite(rowSums(data4bcfss)),])
-# 	
+#
 # 	CVwss <<- NULL
 # 	CVwss <<- formatC((as.numeric(bcfssSup)-as.numeric(bcfssInf))/(4*(as.numeric(bcfssMed))), digits=2)
 # 	CVwss <<- as.numeric(CVwss)
-# 	
+#
 # 	bcfssRow <<- c("<p><b>BCF<sub>ss</sub></b></p>", paste0("<p>",c(bcfssInf, bcfssMed, bcfssSup),"</p>"),  ifelse(CVwss <= formatC(0.500, digits=2),paste0("<p style='color:#63ad00;'>", CVwss, "</p>"), paste0("<p style='color:red;'>", CVwss, "</p>")))
 # 	bcfssRowReport <<- c("<b>BCF<sub>ss</sub></b>", bcfssInf, bcfssMed, bcfssSup, CVwss)
-# 	
-# 	
+#
+#
 # 	# plot for BCFss
 # 	bcfssPlot <<- ggplot(data = data4bcfss, mapping = aes(x = x, y = y), xlab()) +
 # 		geom_line( color = "#ee7202", size = 1) +
@@ -1767,8 +1805,8 @@ if(elim=="no"){
 # 		theme_classic() +
 # 		scale_x_continuous(limits = c(bcfssInf*0.8, bcfssSup/0.8), breaks = c(bcfssInf, bcfssMed, bcfssSup), labels = c(bcfssInf, bcfssMed, bcfssSup))+
 # 		scale_y_continuous(limits = c(0,mean(data4bcfss[,2])*8))
-	
-	
+
+
 	#for report markdown
 	bcfkTablereport <<- data.frame(matrix(unlist(bcfkreport), ncol = 5, byrow = T))
 	colnames(bcfkTablereport) = c("", "2.5%", "50%", "97.5%", "CV")
@@ -1782,41 +1820,41 @@ if(elim=="no"){
 # # BCF #####
 # if("water" %in% whichexp){
 # 	if(lipidyn==TRUE){
-# 		
+#
 # 		# for table
-# 		bcfkl <<- c("<p><b>BCF<sub>k,l</sub></b></p>", 
-# 					paste0("<p>",c(format(bcfInf*0.05/lipids, digits=0, scientific=FALSE), 
-# 								   format(bcfMed*0.05/lipids, digits=0, scientific = FALSE), 
+# 		bcfkl <<- c("<p><b>BCF<sub>k,l</sub></b></p>",
+# 					paste0("<p>",c(format(bcfInf*0.05/lipids, digits=0, scientific=FALSE),
+# 								   format(bcfMed*0.05/lipids, digits=0, scientific = FALSE),
 # 								   format(bcfSup*0.05/lipids, digits=0, scientific = FALSE)),"</p>"),
 # 					ifelse(CVw <= formatC(0.500, digits=2),paste0("<p style='color:#63ad00;'>", CVw, "</p>"),
 # 						   paste0("<p style='color:red;'>", CVw, "</p>")))
 # 		bcfklreport <<- c("<b>BCF<sub>k,l</sub></b>", format(bcfInf*0.05/lipids, digits=0, scientific=FALSE), format(bcfMed*0.05/lipids, digits=0, scientific = FALSE), format(bcfSup*0.05/lipids, digits=0, scientific = FALSE), CVw)
-# 		bcfsslRow <<- c("<p><b>BCF<sub>ss,l</sub></b></p>", 
+# 		bcfsslRow <<- c("<p><b>BCF<sub>ss,l</sub></b></p>",
 # 						paste0("<p>",c(format(bcfssInf*0.05/lipids,digits=0, scientific=FALSE),
 # 									   format(bcfssMed*0.05/lipids, digits=0, scientific=FALSE),
-# 									   format(bcfssSup*0.05/lipids,digits=0, scientific=FALSE)),"</p>"), 
-# 						ifelse(CVwss <= formatC(0.500, digits=2),paste0("<p style='color:#63ad00;'>", CVwss, "</p>"), 
+# 									   format(bcfssSup*0.05/lipids,digits=0, scientific=FALSE)),"</p>"),
+# 						ifelse(CVwss <= formatC(0.500, digits=2),paste0("<p style='color:#63ad00;'>", CVwss, "</p>"),
 # 							   paste0("<p style='color:red;'>", CVwss, "</p>")))
 # 		bcfsslRowReport <<- c("<b>BCF<sub>ss,l</sub></b>",
-# 							  format(bcfssInf*0.05/lipids,digits=0, scientific=FALSE), 
+# 							  format(bcfssInf*0.05/lipids,digits=0, scientific=FALSE),
 # 							  format(bcfssMed*0.05/lipids, digits=0, scientific=FALSE),
-# 							  format(bcfssSup*0.05/lipids,digits=0, scientific=FALSE), 
+# 							  format(bcfssSup*0.05/lipids,digits=0, scientific=FALSE),
 # 							  CVwss)
-# 		
+#
 # 	}
 # }
-
+}
 #######################
 ######### BCFPWk #########
 ########################
 #Only when exposure by water because BCF, otherwise calculate other bioaccumulation factors
 #add if exposure by water in data, calcultae BCF
-
+if("pore water" %in% whichexp){
 #WITHOUT GROWTH
-if("pwater" %in% whichexp & elim == "yes"){
+if("pore water" %in% whichexp & elim == "yes"){
 	# if("sediment" %in% whichexp & "water" %in% whichexp & "food" %in% whichexp){
 	# 	Ubcfpw <- m1$sims.list$kupw
-	# } 	else { 
+	# } 	else {
 	# 	if (length(whichexp) == 3){
 	# 		Ubcfpw <- m1$sims.list$kupw
 	# 	}  else {
@@ -1826,9 +1864,9 @@ if("pwater" %in% whichexp & elim == "yes"){
 	# 	}
 	# }
 	Ubcfpw <- m1$sims.list$kupw
-	
+
 	Ebcfpw <- m1$sims.list$kee
-	
+
 	#WITHOUT GROWTH
 	if(elim_growth == "no"){
 		if(nmet == 0){
@@ -1841,11 +1879,11 @@ if("pwater" %in% whichexp & elim == "yes"){
 			}
 		}
 	}
-	
-	
+
+
 	#WITH GROWTH
 	if(elim_growth == "yes"){
-		Ebcfpw <- m1$sims.list$kee+m1$sims.list$keg      
+		Ebcfpw <- m1$sims.list$kee+m1$sims.list$keg
 		if(nmet == 0){
 			bcfpw <<- Ubcfpw/Ebcfpw
 		}
@@ -1857,38 +1895,38 @@ if("pwater" %in% whichexp & elim == "yes"){
 			}
 		}
 	}
-	
+
 	#removed outliers
-	bcfpw <- bcfpw[-which(bcfpw%in%boxplot(bcfpw)$out)]
-	pdf(NULL)
-	bcfpw <<- na.omit(bcfpw)  
-	
-	
-	bcfpwMed <<- round(quantile(bcfpw, probs = 0.5), digits = 0) 
+	# bcfpw <- bcfpw[-which(bcfpw%in%boxplot(bcfpw)$out)]
+	# pdf(NULL)
+	# bcfpw <<- na.omit(bcfpw)
+	#
+
+	bcfpwMed <<- round(quantile(bcfpw, probs = 0.5), digits = 0)
 	bcfpwInf <<- round(quantile(bcfpw, probs = 0.025), digits = 0)
 	bcfpwSup <<- round(quantile(bcfpw, probs = 0.975), digits = 0)
-	
+
 	if(max(bcfpw) < 1){
 		bcfpwMed <<- round(quantile(bcfpw, probs = 0.5), digits = 4) #50%
 		bcfpwInf <<- round(quantile(bcfpw, probs = 0.025), digits = 4) #2.5%
 		bcfpwSup <<- round(quantile(bcfpw, probs = 0.975), digits = 4) #97.5%
 	}
-	
-	
+
+
 	bcfpwk <<- c("bcfpwk", bcfpwInf, bcfpwMed, bcfpwSup)
-	
+
 	CVpw <<- NULL
 	CVpw <<- formatC((as.numeric(bcfpwSup)-as.numeric(bcfpwInf))/(4*(as.numeric(bcfpwMed))),digits=2)
 	CVpw <<- as.numeric(CVpw)
 	CVpw <<- as.data.frame(CVpw, row.names = "CV")
-	
+
 	bcfpwk <<- c("<p><b>BCF<sub>pw<sub>k</sub></sub></b></p>", paste0("<p>",c(bcfpwInf, bcfpwMed, bcfpwSup),"</p>"),  ifelse(CVpw <= formatC(0.500, digits=2),paste0("<p style='color:#63ad00;'>", CVpw, "</p>"), paste0("<p style='color:red;'>", CVpw, "</p>")))
 	bcfpwkreport <<- c("<b>BCF<sub>pw<sub>k</sub></sub></b>", bcfpwInf, bcfpwMed, bcfpwSup,CVpw)
-	
-	
+
+
 	data4bcfpw <- with(density(bcfpw), data.frame(x, y))
 	data4bcfpw <- na.omit(data4bcfpw[is.finite(rowSums(data4bcfpw)),])
-	
+
 	bcfpwPlot <<- ggplot(data = data4bcfpw, mapping = aes(x = x, y = y), xlab()) +
 		geom_line( color = "#ee7202", size = 1) +
 		labs(x = expression(paste(BCF[pw][k])), y = "Density") +
@@ -1898,60 +1936,60 @@ if("pwater" %in% whichexp & elim == "yes"){
 		geom_vline(xintercept = bcfpwSup, linetype = "longdash") +
 		theme_classic() +
 		scale_x_continuous(limits = c(bcfpwInf*0.8, bcfpwSup/0.8), breaks = c(bcfpwInf, bcfpwMed, bcfpwSup), labels = c(bcfpwInf, bcfpwMed, bcfpwSup))
-	
+
 	# bcfpw <<- as.data.frame(bcfpw)
 	# colnames(bcfpw) <<- c("bcfpwk")
 }
 
 ####### if there is no elimination, BCFpwk could not be calculated, but BCFpwss yes
 if(elim=="no"){
-	if("pwater" %in% whichexp & elim == "no"){
+	if("pore water" %in% whichexp & elim == "no"){
 		CVpw <<- NA
 		bcfpwMed <<- NA
 		bcfpwInf <<- NA
 		bcfpwSup <<- NA
 		bcfpwk <<- c("<p><b>BCF<sub>pw<sub>k</sub></sub></p></b>", bcfpwInf, bcfpwMed, bcfpwSup, CVpw)
 		bcfpwkreport <<- c("<b>BCF<sub>pw<sub>k</sub></sub></b>", bcfpwInf, bcfpwMed, bcfpwSup, CVpw)
-		
+
 		bcfpwPlot <<-	ggplot() +
 			annotate("text", x = 4, y = 25, size=5, label = paste("\n   Elimination is null, BCFpwk plot can not be displayed. \n If steady-state is reached at the end of the accumulation phase, \n you can ask the BCFpw,ss plot.\n")) +
 			theme_void()
 		bcfpw <<- as.data.frame(c(0,0,0))
 		colnames(bcfpw) <<- c("bcfpwk")
-		
+
 	}
 }
 # ########################
 # ######### bcfpwss ######
 # ########################
-# 
-# if("pwater" %in% whichexp){
+#
+# if("pore water" %in% whichexp){
 # 	#Cpred for steady state (equal at tacc)
 # 	Cpredss <<- m1$sims.list$Cobsp[,length(vtacc),1]
 # 	bcfpwss <<- Cpredss/unique(Cexp$exppw)
-# 	
+#
 # 	#removing outliers
 # 	bcfpwss <- bcfpwss[-which(bcfpwss%in%boxplot(bcfpwss)$out)]
 # 	#Calculations of BCF at steady state
-# 	bcfpwss <<- na.omit(bcfpwss)   
-# 	
+# 	bcfpwss <<- na.omit(bcfpwss)
+#
 # 	#obtain the quantiles
 # 	bcfpwssMed <<- round(quantile(bcfpwss, probs = 0.5), digits = 0) #50%
 # 	bcfpwssInf <<- round(quantile(bcfpwss, probs = 0.025), digits = 0) #2.5%
 # 	bcfpwssSup <<- round(quantile(bcfpwss, probs = 0.975), digits = 0) #97.5%
-# 	
+#
 # 	#prepare the data for the density plot
 # 	data4bcfpwss <<- with(density(bcfpwss), data.frame(x, y))
 # 	data4bcfpwss <<- na.omit(data4bcfpwss[is.finite(rowSums(data4bcfpwss)),])
-# 	
-# 	
+#
+#
 # 	CVpwss <<- NULL
 # 	CVpwss <<- formatC((as.numeric(bcfpwssSup)-as.numeric(bcfpwssInf))/(4*(as.numeric(bcfpwssMed))), digits=2)
 # 	CVpwss <<- as.numeric(CVpwss)
-# 	
+#
 # 	bcfpwssRow <<- c("<p><b>BCF<sub>pw<sub>ss</sub></sub></b></p>", paste0("<p>",c(bcfpwssInf, bcfpwssMed, bcfpwssSup),"</p>"),  ifelse(CVpwss <= formatC(0.500, digits=2),paste0("<p style='color:#63ad00;'>", CVpwss, "</p>"), paste0("<p style='color:red;'>", CVpwss, "</p>")))
 # 	bcfpwssRowReport <<- c("<b>BCF<sub>pw<sub>ss</sub></sub></b>", bcfpwssInf, bcfpwssMed, bcfpwssSup, CVpwss)
-# 	
+#
 # 	# plot for BCFss
 # 	bcfpwssPlot <<- ggplot(data = data4bcfpwss, mapping = aes(x = x, y = y), xlab()) +
 # 		geom_line( color = "#ee7202", size = 1) +
@@ -1963,62 +2001,64 @@ if(elim=="no"){
 # 		theme_classic() +
 # 		scale_x_continuous(limits = c(bcfpwssInf*0.8, bcfpwssSup/0.8), breaks = c(bcfpwssInf, bcfpwssMed, bcfpwssSup), labels = c(bcfpwssInf, bcfpwssMed, bcfpwssSup))+
 # 		scale_y_continuous(limits = c(0,mean(data4bcfpwss[,2])*8))
-# 	
+#
 # 	# for BCFss quantiles table
 # 	# bcfpwssRow <<- c("<i><b>BCF<sub>pw<sub>ss</sub></sub></i></b>", bcfpwssInf, bcfpwssMed, bcfpwssSup)
 # 	# bcfpwss <<- as.data.frame(bcfpwss)
-# 	
+#
 # }
 
 #####################
 ###   bcfPW TABLE   #
 #####################
-if("pwater" %in% whichexp){
-	bcfpwkTable <<- data.frame(matrix(unlist(bcfpwk), ncol = length(bcfpwk), byrow = T))
-	colnames(bcfpwkTable) <<- c("", "2.5%", "50%", "97.5%")
+if("pore water" %in% whichexp){
+	bcfpwkTable <- data.frame(matrix(unlist(bcfpwk), ncol = length(bcfpwk), byrow = T))
+	colnames(bcfpwkTable) <- c("", "2.5%", "50%", "97.5%")
 	# bcfpwTable <<- rbind(bcfpwk, bcfpwssRow)
 	#for report markdown
-	bcfpwkTablereport <<- data.frame(matrix(unlist(bcfpwkreport), ncol = length(bcfpwk), byrow = T))
+	bcfpwkTablereport <- data.frame(matrix(unlist(bcfpwkreport), ncol = length(bcfpwk), byrow = T))
 	colnames(bcfpwkTablereport) = c("", "2.5%", "50%", "97.5%", "CV")
 	# bcfpwTablereport <<- rbind (bcfpwkreport,bcfpwssRowReport)
-	
+
 }
 
 
 # BCFpw #####
-# if("pwater" %in% whichexp){
+# if("pore water" %in% whichexp){
 # 	if(lipidyn==TRUE){
 # 		# for table
 # 		bcfpwkl <<- c("<p><b>BCFpw<sub>k,l</sub></b></p>",
 # 					  paste0("<p>", c(
-# 					  	format(bcfpwInf*0.05/lipids, digits=0, scientific=FALSE), 
-# 					  	format(bcfpwMed*0.05/lipids, digits=0, scientific=FALSE), 
+# 					  	format(bcfpwInf*0.05/lipids, digits=0, scientific=FALSE),
+# 					  	format(bcfpwMed*0.05/lipids, digits=0, scientific=FALSE),
 # 					  	format(bcfpwSup*0.05/lipids, digits=0, scientific=FALSE)),
-# 					  	"</p>"), 
+# 					  	"</p>"),
 # 					  ifelse(CVpw <= formatC(0.500, digits=2),
 # 					  	   paste0("<p style='color:#63ad00;'>", CVpw, "</p>"),
 # 					  	   paste0("<p style='color:red;'>", CVpw, "</p>")))
-# 		
-# 		bcfpwklreport <<- c("<b>BCFpw<sub>k,l</sub></b>", 
-# 							format(bcfpwInf*0.05/lipids, digits=0, scientific=FALSE), 
-# 							format(bcfpwMed*0.05/lipids, digits=0, scientific=FALSE), 
+#
+# 		bcfpwklreport <<- c("<b>BCFpw<sub>k,l</sub></b>",
+# 							format(bcfpwInf*0.05/lipids, digits=0, scientific=FALSE),
+# 							format(bcfpwMed*0.05/lipids, digits=0, scientific=FALSE),
 # 							format(bcfpwSup*0.05/lipids, digits=0, scientific=FALSE),
 # 							CVpw)
-# 		
+#
 # 		bcfpwsslRow <<- c("<p><b>BCFpw<sub>ss,l</sub></b></p>", paste0("<p>",c(
-# 			format(bcfpwssInf*0.05/lipids, digits=0, scientific=FALSE), 
-# 			format(bcfpwssMed*0.05/lipids, digits=0, scientific=FALSE), 
+# 			format(bcfpwssInf*0.05/lipids, digits=0, scientific=FALSE),
+# 			format(bcfpwssMed*0.05/lipids, digits=0, scientific=FALSE),
 # 			format(bcfpwssSup*0.05/lipids, digits=0, scientific=FALSE)),
 # 			"</p>"),  ifelse(CVpwss <= formatC(0.500, digits=2),paste0("<p style='color:#63ad00;'>", CVpwss, "</p>"), paste0("<p style='color:red;'>", CVpwss, "</p>")))
-# 		
+#
 # 		bcfpwsslRowReport <<- c("<b>BCFpw<sub>ss,l</sub></b>",
-# 								format(bcfpwssInf*0.05/lipids, digits=0, scientific=FALSE), 
-# 								format(bcfpwssMed*0.05/lipids, digits=0, scientific=FALSE), 
+# 								format(bcfpwssInf*0.05/lipids, digits=0, scientific=FALSE),
+# 								format(bcfpwssMed*0.05/lipids, digits=0, scientific=FALSE),
 # 								format(bcfpwssSup*0.05/lipids, digits=0, scientific=FALSE), CVpwss)
-# 		
+#
 # 	}
 # }
 
+
+}
 
 
 ########################
@@ -2027,7 +2067,7 @@ if("pwater" %in% whichexp){
 #Only when exposure by sediment
 #if only one route of exposure
 #WITHOUT GROWTH
-
+if("sediment" %in% whichexp){
 if("sediment" %in% whichexp & elim == "yes"){
 	if("water" %in% whichexp){
 		Ubsaf <- m1$sims.list$kus # when several routes of exposure?
@@ -2035,11 +2075,11 @@ if("sediment" %in% whichexp & elim == "yes"){
 		Ubsaf <- m1$sims.list$kus
 	}
 	Ebsaf <- m1$sims.list$kee
-	
+
 	#WITHOUT GROWTH
 	if(elim_growth == "no"){
 		if(nmet == 0){
-			bsaf <- Ubsaf/Ebsaf 
+			bsaf <- Ubsaf/Ebsaf
 		}
 		if(nmet != 0){
 			for(i in 1:nmet){
@@ -2049,11 +2089,11 @@ if("sediment" %in% whichexp & elim == "yes"){
 			}
 		}
 	}
-	
+
 	#WITH GROWTH
 	if(elim_growth == "yes"){
 		Ebsaf <- m1$sims.list$kee+m1$sims.list$keg
-		
+
 		if(nmet == 0){
 			bsaf <- Ubsaf/Ebsaf
 		}
@@ -2064,34 +2104,34 @@ if("sediment" %in% whichexp & elim == "yes"){
 			bsaf <- Ubsaf/Ebsaf+Mbsaf
 		}
 	}
-	
-	
+
+
 	#removing outliers
-	bsaf <- bsaf[-which(bsaf%in%boxplot(bsaf)$out)]
-	pdf(NULL)
-	bsaf <<- na.omit(bsaf)  
-	
+	# bsaf <- bsaf[-which(bsaf%in%boxplot(bsaf)$out)]
+	# pdf(NULL)
+	bsaf <<- na.omit(bsaf)
+
 	bsafMed <<- round(quantile(bsaf, probs = 0.5), digits = 0)
 	bsafInf <<- round(quantile(bsaf, probs = 0.025), digits = 0)
 	bsafSup <<- round(quantile(bsaf, probs = 0.975), digits = 0)
-	
+
 	if(max(bsaf) < 1){
 		bsafMed <<- round(quantile(bsaf, probs = 0.5), digits = 4) #50%
 		bsafInf <<- round(quantile(bsaf, probs = 0.025), digits = 4) #2.5%
 		bsafSup <<- round(quantile(bsaf, probs = 0.975), digits = 4) #97.5%
 	}
-	
+
 	CVs <<- NULL
 	CVs <<- formatC((as.numeric(bsafSup)-as.numeric(bsafInf))/(4*(as.numeric(bsafMed))), digits=2)
 	CVs <<- as.numeric(CVs)
 	CVs <<- as.data.frame(CVs, row.names = "CV")
-	
+
 	bsafk <<- c("<p><b>BSAF<sub>k</sub></b></p>", paste0("<p>",c(bsafInf, bsafMed, bsafSup),"</p>"),  ifelse(CVs <= formatC(0.500, digits=2),paste0("<p style='color:#63ad00;'>", CVs, "</p>"), paste0("<p style='color:red;'>", CVs, "</p>")))
 	bsafkReport <<- c("<b>BSAF<sub>k</sub></b>", bsafInf, bsafMed, bsafSup,  CVs)
-	
+
 	data4bsaf <- with(density(bsaf), data.frame(x, y))
 	data4bsaf <- na.omit(data4bsaf[is.finite(rowSums(data4bsaf)),])
-	
+
 	bsafPlot <<- ggplot(data = data4bsaf, mapping = aes(x = x, y = y), xlab()) +
 		geom_line( color = "#ee7202", size = 1) +
 		labs(x = expression(paste(BSAF[k])), y = "Density") +
@@ -2101,7 +2141,7 @@ if("sediment" %in% whichexp & elim == "yes"){
 		theme_classic() +
 		geom_vline(xintercept = bsafSup, linetype = "longdash")+
 		scale_x_continuous(limits = c(bsafInf*0.8, bsafSup/0.8), breaks = c(bsafInf, bsafMed, bsafSup), labels = c(bsafInf, bsafMed, bsafSup))
-	
+
 }
 
 ####### if there is no elimination, BSAFk could not be calculated, but BSAFss yes
@@ -2113,13 +2153,13 @@ if(elim=="no"){
 		bsafSup <<- NA
 		bsafk <<- c("<p><b>BSAF<sub>k</sub></p></b>", bsafInf, bsafMed, bsafSup, CVs)
 		bsafkReport <<- c("<b>BSAF<sub>k</sub></b>", bsafInf, bsafMed, bsafSup, CVs)
-		
+
 		bsafPlot <<-	ggplot() +
 			annotate("text", x = 4, y = 25, size=5, label = paste("\n   Elimination is null, BSAFk plot can not be displayed. \n If steady-state is reached at the end of the accumulation phase, \n you can ask the BSAFss plot.\n")) +
 			theme_void()
 		bsaf <<- as.data.frame(c(0,0,0))
 		colnames(bsaf) <<- c("bsafk")
-		
+
 	}
 }
 ########################
@@ -2130,32 +2170,32 @@ if(elim=="no"){
 # 	#Cpred for steady state (equal at tacc)
 # 	Cpredss <<- m1$sims.list$Cobsp[,length(vtacc),1]
 # 	bsafss <<- Cpredss/unique(Cexp$exps)
-# 	
+#
 # 	#removing outliers
 # 	bsafss <- bsafss[-which(bsafss%in%boxplot(bsafss)$out)]
 # 	#Calculations of BSAF at steady state
-# 	bsafss <<- na.omit(bsafss)   
-# 	
+# 	bsafss <<- na.omit(bsafss)
+#
 # 	bsafssMed <<- round(quantile(bsafss, probs = 0.5), digits = 0)
 # 	bsafssInf <<- round(quantile(bsafss, probs = 0.025), digits = 0)
 # 	bsafssSup <<- round(quantile(bsafss, probs = 0.975), digits = 0)
-# 	
+#
 # 	if(max(bsafss) < 1){
 # 		bsafssMed <<- round(quantile(bsafss, probs = 0.5), digits = 4) #50%
 # 		bsafssInf <<- round(quantile(bsafss, probs = 0.025), digits = 4) #2.5%
 # 		bsafssSup <<- round(quantile(bsafss, probs = 0.975), digits = 4) #97.5%
 # 	}
-# 	
+#
 # 	data4bsafss <<- with(density(bsafss), data.frame(x, y))
 # 	data4bsafss <<- na.omit(data4bsafss[is.finite(rowSums(data4bsafss)),])
-# 	
+#
 # 	CVsss <<- NULL
 # 	CVsss <<- formatC((as.numeric(bsafssSup)-as.numeric(bsafssInf))/(4*(as.numeric(bsafssMed))), digits=2)
 # 	CVsss <<- as.numeric(CVsss)
-# 	
+#
 # 	bsafssRow <<- c("<p><b>BSAF<sub>ss</sub></b></p>", paste0("<p>",c(bsafssInf, bsafssMed, bsafssSup),"</p>"),  ifelse(CVsss <= formatC(0.500, digits=2),paste0("<p style='color:#63ad00;'>", CVsss, "</p>"), paste0("<p style='color:red;'>", CVsss, "</p>")))
 # 	bsafssRowReport <<- c("<b>BSAF<sub>ss</sub></b>", bsafssInf, bsafssMed, bsafssSup,  CVsss)
-# 	
+#
 # 	bsafssPlot <<- ggplot(data = data4bsafss, mapping = aes(x = x, y = y), xlab()) +
 # 		geom_line( color = "#ee7202", size = 1) +
 # 		labs(x = expression(paste(BSAF[ss])), y = "Density") +
@@ -2165,49 +2205,49 @@ if(elim=="no"){
 # 		geom_vline(xintercept = bsafssSup, linetype = "longdash") +
 # 		theme_classic() +
 # 		scale_x_continuous(limits = c(bsafssInf*0.8, bsafssSup/0.8), breaks = c(bsafssInf, bsafssMed, bsafssSup), labels = c(bsafssInf, bsafssMed, bsafssSup))
-# 	
+#
 	if("sediment" %in% whichexp){
 	#for report markdown
 	bsafkTablereport <<- data.frame(matrix(unlist(bsafkReport), ncol = length(bsafk), byrow = T))
 	colnames(bsafkTablereport) = c("", "2.5%", "50%", "97.5%", "CV")
 	# bsafTablereport <<- rbind (bsafkReport,bsafssRowReport)
 	}
-# 	
-# 	
+#
+#
 # }
 
 # BSAF #####
 # if("sediment" %in% whichexp){
 # 	if(lipidyn==TRUE){
 # 		# for table
-# 		bsafkl <<- c("<p><b>BSAF<sub>k,l</sub></b></p>", 
+# 		bsafkl <<- c("<p><b>BSAF<sub>k,l</sub></b></p>",
 # 					 paste0("<p>",c(
 # 					 	format(bsafInf*0.05/lipids, digits=0, scientific=FALSE),
 # 					 	format(bsafMed*0.05/lipids, digits=0, scientific=FALSE),
 # 					 	format(bsafSup*0.05/lipids,digits=0, scientific=FALSE)),
 # 					 	"</p>"), ifelse(CVs <= formatC(0.500, digits=2),paste0("<p style='color:#63ad00;'>", CVs, "</p>"), paste0("<p style='color:red;'>", CVs, "</p>")))
-# 		
-# 		bsafklreport <<- c("<b>BSAF<sub>k,l</sub></b>", 
+#
+# 		bsafklreport <<- c("<b>BSAF<sub>k,l</sub></b>",
 # 						   format(bsafInf*0.05/lipids, digits=0, scientific=FALSE),
 # 						   format(bsafMed*0.05/lipids, digits=0, scientific=FALSE),
 # 						   format(bsafSup*0.05/lipids,digits=0, scientific=FALSE),
 # 						   CVs)
-# 		
+#
 # 		bsafsslRow <<- c("<p><b>BSAF<sub>ss,l</sub></b></p>", paste0("<p>",c(
 # 			format(bsafssInf*0.05/lipids, digits=0, scientific=FALSE),
 # 			format(bsafssMed*0.05/lipids, digits=0, scientific=FALSE),
 # 			format(bsafSup*0.05/lipids,digits=0, scientific=FALSE)),
 # 			"</p>"),  ifelse(CVsss <= formatC(0.500, digits=2),paste0("<p style='color:#63ad00;'>", CVsss, "</p>"), paste0("<p style='color:red;'>", CVsss, "</p>")))
-# 		
+#
 # 		bsafsslRowReport <<- c("<b>BSAF<sub>ss,l</sub></b>",
 # 							   format(bsafssInf*0.05/lipids, digits=0, scientific=FALSE),
 # 							   format(bsafssMed*0.05/lipids, digits=0, scientific=FALSE),
 # 							   format(bsafSup*0.05/lipids,digits=0, scientific=FALSE),
 # 							   CVsss)
-# 		
+#
 # 	}
 # }
-
+}
 ########################
 ######### BMFk ########
 ########################
@@ -2216,7 +2256,7 @@ if(elim=="no"){
 if("food" %in% whichexp & elim == "yes"){
 	if("sediment" %in% whichexp & "water" %in% whichexp){
 		Ubmf <- m1$sims.list$kuf # when several routes of exposure?
-	} else { 
+	} else {
 		if (length(whichexp) == 2){
 			Ubmf <- m1$sims.list$kuf
 		}  else {
@@ -2224,25 +2264,9 @@ if("food" %in% whichexp & elim == "yes"){
 		}
 	}
 	Ebmf <- m1$sims.list$kee
-	
+
 	#WITHOUT GROWTH
 	if(elim_growth == "no"){
-		if(nmet == 0){
-			bmf <- Ubmf/Ebmf 
-		}
-		if(nmet != 0){
-			for(i in 1:nmet){
-				Mbmf <- array(0, dim = lenp)
-				Mbmf <- Mbmf+m1$sims.list[[paste0(parkem[i])]]
-				bmf <- Ubmf/Ebmf+Mbmf
-			}
-		}
-	}
-	
-	#WITH GROWTH
-	if(elim_growth == "yes"){
-		Ebmf <- m1$sims.list$kee+m1$sims.list$keg
-		
 		if(nmet == 0){
 			bmf <- Ubmf/Ebmf
 		}
@@ -2254,37 +2278,53 @@ if("food" %in% whichexp & elim == "yes"){
 			}
 		}
 	}
-	
+
+	#WITH GROWTH
+	if(elim_growth == "yes"){
+		Ebmf <- m1$sims.list$kee+m1$sims.list$keg
+
+		if(nmet == 0){
+			bmf <- Ubmf/Ebmf
+		}
+		if(nmet != 0){
+			for(i in 1:nmet){
+				Mbmf <- array(0, dim = lenp)
+				Mbmf <- Mbmf+m1$sims.list[[paste0(parkem[i])]]
+				bmf <- Ubmf/Ebmf+Mbmf
+			}
+		}
+	}
+
 	#removing outliers
-	bmf <- bmf[-which(bmf%in%boxplot(bmf)$out)]
-	pdf(NULL)
-	bmf <<- na.omit(bmf)  
-	
-	
+	# bmf <- bmf[-which(bmf%in%boxplot(bmf)$out)]
+	# pdf(NULL)
+	bmf <<- na.omit(bmf)
+
+
 	bmfMed <<- round(quantile(bmf, probs = 0.5), digits = 0)
 	bmfInf <<- round(quantile(bmf, probs = 0.025), digits = 0)
 	bmfSup <<- round(quantile(bmf, probs = 0.975), digits = 0)
-	
+
 	if(max(bmf) < 1){
 		bmfMed <<- round(quantile(bmf, probs = 0.5), digits = 4) #50%
 		bmfInf <<- round(quantile(bmf, probs = 0.025), digits = 4) #2.5%
 		bmfSup <<- round(quantile(bmf, probs = 0.975), digits = 4) #97.5%
 	}
-	
+
 	CVf <<- NULL
 	CVf <<- formatC((as.numeric(bmfSup)-as.numeric(bmfInf))/(4*(as.numeric(bmfMed))), digits=2)
 	CVf <<- as.numeric(CVf)
 	CVf <<- as.data.frame(CVf, row.names = "CV")
-	
+
 	bmfk <<- c("<p><b>BMF<sub>k</sub></b></p>", paste0("<p>",c(bmfInf, bmfMed, bmfSup),"</p>"),  ifelse(CVf <= formatC(0.500, digits=2),paste0("<p style='color:#63ad00;'>", CVf, "</p>"), paste0("<p style='color:red;'>", CVf, "</p>")))
 	bmfkReport<<- c("<b>BMF<sub>k</sub></b>", bmfInf, bmfMed, bmfSup, CVf)
-	
+
 	data4bmf <- with(density(bmf), data.frame(x, y))
 	data4bmf <- na.omit(data4bmf[is.finite(rowSums(data4bmf)),])
-	
+
 	# bmf <<- as.data.frame(bmf)
 	# colnames(bmf) <<- c("bmfk")
-	# 
+	#
 	bmfPlot <<- ggplot(data = data4bmf, mapping = aes(x = x, y = y), xlab()) +
 		geom_line( color = "#ee7202", size = 1) +
 		labs(x = expression(paste(BMF[k])), y = "Density") +
@@ -2293,7 +2333,7 @@ if("food" %in% whichexp & elim == "yes"){
 		geom_vline(xintercept = bmfMed, linetype = "longdash") +
 		geom_vline(xintercept = bmfSup, linetype = "longdash") +
 		theme_classic() +
-		scale_x_continuous(limits = c(bmfInf*0.8, bmfSup/0.8), breaks = c(bmfInf, bmfMed, bmfSup), labels = c(bmfInf, bmfMed, bmfSup)) 
+		scale_x_continuous(limits = c(bmfInf*0.8, bmfSup/0.8), breaks = c(bmfInf, bmfMed, bmfSup), labels = c(bmfInf, bmfMed, bmfSup))
 }
 
 ####### if there is no elimination, BMFk could not be calculated, but BMFss yes
@@ -2305,13 +2345,13 @@ if(elim=="no"){
 		bmfSup <<- NA
 		bmfk <<- c("<p><b>BMF<sub>k</sub></p></b>", bmfInf, bmfMed, bmfSup, CVf)
 		bmfkReport <<- c("<b>BMF<sub>k</sub></b>", bmfInf, bmfMed, bmfSup, CVf)
-		
+
 		bmfPlot <<-	ggplot() +
 			annotate("text", x = 4, y = 25, size=5, label = paste("\n   Elimination is null, BMFk plot can not be displayed. \n If steady-state is reached at the end of the accumulation phase, \n you can ask the BMFss plot.\nn")) +
 			theme_void()
 		bmf <<- as.data.frame(c(0,0,0))
 		colnames(bmf) <<- c("bmfk")
-		
+
 	}
 }
 
@@ -2321,31 +2361,31 @@ if(elim=="no"){
 # if("food" %in% whichexp){
 # 	#Cpred for steady state (equal at tacc)
 # 	Cpredss <<- m1$sims.list$Cobsp[,length(vtacc),1]
-# 	
+#
 # 	#Calculations of BMF at steady state
 # 	bmfss <<- Cpredss/unique(Cexp$expf)
 # 	#removing outliers
 # 	bmfss <- bmfss[-which(bmfss%in%boxplot(bmfss)$out)]
-# 	bmfss <<- na.omit(bmfss)  
-# 	
+# 	bmfss <<- na.omit(bmfss)
+#
 # 	bmfssMed <<- round(quantile(bmfss, probs = 0.5), digits = 0)
 # 	bmfssInf <<- round(quantile(bmfss, probs = 0.025), digits = 0)
 # 	bmfssSup <<- round(quantile(bmfss, probs = 0.975), digits = 0)
-# 	
+#
 # 	if(max(bmfss) < 1){
 # 		bmfssMed <<- round(quantile(bmfss, probs = 0.5), digits = 4) #50%
 # 		bmfssInf <<- round(quantile(bmfss, probs = 0.025), digits = 4) #2.5%
 # 		bmfssSup <<- round(quantile(bmfss, probs = 0.975), digits = 4) #97.5%
 # 	}
-# 	
-# 	
+#
+#
 # 	CVfss <<- NULL
 # 	CVfss <<- formatC((as.numeric(bmfssSup)-as.numeric(bmfssInf))/(4*(as.numeric(bmfssMed))), digits=2)
 # 	CVfss <<- as.numeric(CVfss)
-# 	
+#
 # 	data4bmfss <<- with(density(bmfss), data.frame(x, y))
 # 	data4bmfss <<- na.omit(data4bmfss[is.finite(rowSums(data4bmfss)),])
-# 	
+#
 # 	bmfssPlot <<- ggplot(data = data4bmfss, mapping = aes(x = x, y = y), xlab()) +
 # 		geom_line( color = "#ee7202", size = 1) +
 # 		labs(x = expression(paste(BMF[ss])), y = "Density") +
@@ -2354,11 +2394,11 @@ if(elim=="no"){
 # 		geom_vline(xintercept = bmfssMed, linetype = "longdash") +
 # 		geom_vline(xintercept = bmfssSup, linetype = "longdash") +
 # 		theme_classic() +
-# 		scale_x_continuous(limits = c(bmfssInf*0.8, bmfssSup/0.8), breaks = c(bmfssInf, bmfssMed, bmfssSup), labels = c(bmfssInf, bmfssMed, bmfssSup)) 
-# 	
+# 		scale_x_continuous(limits = c(bmfssInf*0.8, bmfssSup/0.8), breaks = c(bmfssInf, bmfssMed, bmfssSup), labels = c(bmfssInf, bmfssMed, bmfssSup))
+#
 # 	bmfssRow <<- c("<p><b>BMF<sub>ss</sub></b></p>", paste0("<p>",c(bmfssInf, bmfssMed, bmfssSup),"</p>"),  ifelse(CVfss <= formatC(0.500, digits=2),paste0("<p style='color:#63ad00;'>", CVfss, "</p>"), paste0("<p style='color:red;'>", CVfss, "</p>")))
 # 	bmfssRowReport <<- c("<b>BMF<sub>ss</sub></b>", bmfssInf, bmfssMed, bmfssSup,CVfss)
-# 	
+#
 	if("food" %in% whichexp){
 	#for report markdown
 	bmfkTablereport <<- data.frame(matrix(unlist(bmfkReport), ncol = length(bmfk), byrow = T))
@@ -2376,20 +2416,20 @@ if(elim=="no"){
 # 			format(bmfMed*0.05/lipids, digits=0, scientific=FALSE),
 # 			format(bmfSup*0.05/lipids, digits=0, scientific=FALSE)),
 # 			"</p>"), ifelse(CVf <= formatC(0.500, digits=2),paste0("<p style='color:#63ad00;'>", CVf, "</p>"), paste0("<p style='color:red;'>", CVf, "</p>")))
-# 		
-# 		bmfklreport <<- c("<b>BMF<sub>k,l</sub></b>", 
+#
+# 		bmfklreport <<- c("<b>BMF<sub>k,l</sub></b>",
 # 						  format(bmfInf*0.05/lipids, digits=0, scientific=FALSE),
 # 						  format(bmfMed*0.05/lipids, digits=0, scientific=FALSE),
 # 						  format(bmfSup*0.05/lipids, digits=0, scientific=FALSE),
 # 						  CVf)
-# 		
+#
 # 		bmfsslRow <<- c("<p><b>BMF<sub>ss,l</sub></b></p>", paste0("<p>",c(
 # 			format(bmfssInf*0.05/lipids, digits=0, scientific=FALSE),
 # 			format(bmfssMed*0.05/lipids, digits=0, scientific=FALSE),
 # 			format(bmfssSup*0.05/lipids, digits=0, scientific=FALSE)),
 # 			"</p>"),  ifelse(CVfss <= formatC(0.500, digits=2),paste0("<p style='color:#63ad00;'>", CVfss, "</p>"), paste0("<p style='color:red;'>", CVfss, "</p>")))
-# 		
-# 		bmfsslRowReport <<- c("<b>BMF<sub>ss,l</sub></b>", 
+#
+# 		bmfsslRowReport <<- c("<b>BMF<sub>ss,l</sub></b>",
 # 							  format(bmfssInf*0.05/lipids, digits=0, scientific=FALSE),
 # 							  format(bmfssMed*0.05/lipids, digits=0, scientific=FALSE),
 # 							  format(bmfssSup*0.05/lipids, digits=0, scientific=FALSE),
@@ -2399,30 +2439,30 @@ if(elim=="no"){
 
 
 
-# 
-# 
-# 
-# 
-# 
-# 
-# 
-# 
-# 
-# 
-# 
-# 
-# 
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
 # ###
-# ### BCFk 
+# ### BCFk
 # ###
-# 
+#
 # #Only when exposure by water because BCF, otherwise calculate other bioaccumulation factors
 # #add if exposure by water in data, calcultae BCF
-# 
+#
 # if("water" %in% whichexp & elim == "yes"){
 #   Ubcf <- m1$sims.list$kuw
 #   Ebcf <- m1$sims.list$kee
-#   
+#
 #   #WITHOUT GROWTH
 #   if(elim_growth == "no"){
 #     if(nmet == 0){
@@ -2432,16 +2472,16 @@ if(elim=="no"){
 #       for(i in 1:nmet){
 #         Mbcf <- array(0, dim = lenp)
 #         Mbcf <- Mbcf+m1$sims.list[[paste0(parkem[i])]]
-#         
+#
 #         bcf <- Ubcf/Ebcf+Mbcf
 #       }
 #     }
 #   }
-#   
+#
 #   #WITH GROWTH
 #   if(elim_growth == "yes"){
 #     Ebcf <- m1$sims.list$kee+m1$sims.list$keg
-#     
+#
 #     if(nmet == 0){
 #       bcf <- Ubcf/Ebcf
 #     }
@@ -2453,15 +2493,15 @@ if(elim=="no"){
 #       }
 #     }
 #   }
-#   
+#
 #   # distributions of BCF
 #   bcfMed <- round(quantile(bcf, probs = 0.5), digits = 4)
 #   bcfInf <- round(quantile(bcf, probs = 0.025), digits = 4)
 #   bcfSup <- round(quantile(bcf, probs = 0.975), digits = 4)
-#   
+#
 #   data4bcf <- with(density(bcf), data.frame(x, y))
 #   data4bcf <- na.omit(data4bcf[is.finite(rowSums(data4bcf)),])
-#   
+#
 #   bcfPlot <- ggplot(data = data4bcf, mapping = aes(x = x, y = y), xlab()) +
 #     geom_line( color = "#ee7202", size = 1) +
 #     labs(x = "BCFk", y = "Density") +
@@ -2469,30 +2509,30 @@ if(elim=="no"){
 #     geom_vline(xintercept = bcfInf, linetype = "longdash") +
 #     geom_vline(xintercept = bcfMed, linetype = "longdash") +
 #     geom_vline(xintercept = bcfSup, linetype = "longdash") +
-#     scale_x_continuous(limits = c(bcfInf*0.8, bcfSup/0.8), breaks = c(bcfInf, bcfMed, bcfSup), labels = c(bcfInf, bcfMed, bcfSup)) 
+#     scale_x_continuous(limits = c(bcfInf*0.8, bcfSup/0.8), breaks = c(bcfInf, bcfMed, bcfSup), labels = c(bcfInf, bcfMed, bcfSup))
 # }
-# 
+#
 # ###
-# ### BCFss 
+# ### BCFss
 # ###
-# 
+#
 # if("water" %in% whichexp){
 #   #Cpred for steady state (equal at tacc)
 #   Cpredss <- m1$sims.list$Cobsp[,length(vtacc),1]
 #   bcfss <- Cpredss/unique(Cexp$expw)
-#   
+#
 #   #Calculations of BCF at steady state
-#   bcfss <- na.omit(bcfss)   
-#   
+#   bcfss <- na.omit(bcfss)
+#
 #   #obtain the quantiles
 #   bcfssMed <- round(quantile(bcfss, probs = 0.5), digits = 4) #50%
 #   bcfssInf <- round(quantile(bcfss, probs = 0.025), digits = 4) #2.5%
 #   bcfssSup <- round(quantile(bcfss, probs = 0.975), digits = 4) #97.5%
-#   
+#
 #   #prepare the data for the density plot
 #   data4bcfss <- with(density(bcfss), data.frame(x, y))
 #   data4bcfss <- na.omit(data4bcfss[is.finite(rowSums(data4bcfss)),])
-#   
+#
 #   # plot for BCFss
 #   bcfssPlot <- ggplot(data = data4bcfss, mapping = aes(x = x, y = y), xlab()) +
 #     geom_line( color = "#ee7202", size = 1) +
@@ -2504,28 +2544,28 @@ if(elim=="no"){
 #     scale_x_continuous(limits = c(bcfssInf*0.8, bcfssSup/0.8), breaks = c(bcfssInf, bcfssMed, bcfssSup), labels = c(bcfssInf, bcfssMed, bcfssSup))+
 #     scale_y_continuous(limits = c(0,mean(data4bcfss[,2])*8))
 # }
-# 
+#
 # # table for report
-# 
+#
 # bcfkTablereport <<- data.frame(matrix(unlist(bcfkreport), ncol = 5, byrow = T))
 # colnames(bcfkTablereport) = c("", "2.5%", "50%", "97.5%", "CV")
 # bcfTablereport <<- rbind(bcfkreport,bcfssRowReport)
-# 
-# 
+#
+#
 # # 8.2. BCFpw ####
-# 
+#
 # ###
-# ### BCFPWk 
+# ### BCFPWk
 # ###
-# 
+#
 # #Only when exposure by water because BCF, otherwise calculate other bioaccumulation factors
 # #add if exposure by water in data, calcultae BCF
-# 
+#
 # #WITHOUT GROWTH
-# if("pwater" %in% whichexp & elim == "yes"){
+# if("pore water" %in% whichexp & elim == "yes"){
 #   if("sediment" %in% whichexp & "water" %in% whichexp & "food" %in% whichexp){
 #     Ubcfpw <- m1$sims.list$kupw
-#   } 	else { 
+#   } 	else {
 #     if (length(whichexp) == 3){
 #       Ubcfpw <- m1$sims.list$kupw
 #     }  else {
@@ -2534,9 +2574,9 @@ if(elim=="no"){
 #       }
 #     }
 #   }
-#   
+#
 #   Ebcfpw <- m1$sims.list$kee
-#   
+#
 #   #WITHOUT GROWTH
 #   if(elim_growth == "no"){
 #     if(nmet == 0){
@@ -2550,10 +2590,10 @@ if(elim=="no"){
 #       }
 #     }
 #   }
-#   
+#
 #   #WITH GROWTH
 #   if(elim_growth == "yes"){
-#     Ebcfpw <- m1$sims.list$kee+m1$sims.list$keg      
+#     Ebcfpw <- m1$sims.list$kee+m1$sims.list$keg
 #     if(nmet == 0){
 #       bcfpw <- Ubcfpw/Ebcfpw
 #     }
@@ -2565,21 +2605,21 @@ if(elim=="no"){
 #       }
 #     }
 #   }
-#   
-#   bcfpwMed <- round(quantile(bcfpw, probs = 0.5), digits = 0) 
+#
+#   bcfpwMed <- round(quantile(bcfpw, probs = 0.5), digits = 0)
 #   bcfpwInf <- round(quantile(bcfpw, probs = 0.025), digits = 0)
 #   bcfpwSup <- round(quantile(bcfpw, probs = 0.975), digits = 0)
 #   bcfpwk <- c("bcfpwk", bcfpwInf, bcfpwMed, bcfpwSup)
-#   
+#
 #   if(lipidyn==TRUE){
 #     # for table
 #     bcfklreport <- c("<b>BCF<sub>k,l</sub></b>", bcfInf*0.05/lipids, bcfMed*0.05/lipids, bcfSup*0.05/lipids, CVw)
 #     bcfsslRowReport <- c("<b>BCF<sub>ss,l</sub></b>", bcfssInf*0.05/lipids, bcfssMed*0.05/lipids, bcfssSup*0.05/lipids, CVwss)
 #   }
-#   
+#
 #   data4bcfpw <- with(density(bcfpw), data.frame(x, y))
 #   data4bcfpw <- na.omit(data4bcfpw[is.finite(rowSums(data4bcfpw)),])
-#   
+#
 #   bcfpwPlot <- ggplot(data = data4bcfpw, mapping = aes(x = x, y = y), xlab()) +
 #     geom_line( color = "#ee7202", size = 1) +
 #     labs(x = "bcfpwk", y = "Density") +
@@ -2588,32 +2628,32 @@ if(elim=="no"){
 #     geom_vline(xintercept = bcfpwMed, linetype = "longdash") +
 #     geom_vline(xintercept = bcfpwSup, linetype = "longdash") +
 #     scale_x_continuous(limits = c(bcfpwInf*0.8, bcfpwSup/0.8), breaks = c(bcfpwInf, bcfpwMed, bcfpwSup), labels = c(bcfpwInf, bcfpwMed, bcfpwSup))
-#   
+#
 #   bcfpw <- as.data.frame(bcfpw)
 #   colnames(bcfpw) <- c("bcfpwk")
 # }
-# 
+#
 # ###
-# ### BCFpwss 
+# ### BCFpwss
 # ###
-# 
-# if("pwater" %in% whichexp){
+#
+# if("pore water" %in% whichexp){
 #   #Cpred for steady state (equal at tacc)
 #   Cpredss <- m1$sims.list$Cobsp[,length(vtacc),1]
 #   bcfpwss <- Cpredss/unique(Cexp$exppw)
-#   
+#
 #   #Calculations of BCF at steady state
-#   bcfpwss <- na.omit(bcfpwss)   
-#   
+#   bcfpwss <- na.omit(bcfpwss)
+#
 #   #obtain the quantiles
 #   bcfpwssMed <- round(quantile(bcfpwss, probs = 0.5), digits = 4) #50%
 #   bcfpwssInf <- round(quantile(bcfpwss, probs = 0.025), digits = 4) #2.5%
 #   bcfpwssSup <- round(quantile(bcfpwss, probs = 0.975), digits = 4) #97.5%
-#   
+#
 #   #prepare the data for the density plot
 #   data4bcfpwss <- with(density(bcfpwss), data.frame(x, y))
 #   data4bcfpwss <- na.omit(data4bcfpwss[is.finite(rowSums(data4bcfpwss)),])
-#   
+#
 #   # plot for BCFss
 #   bcfssPlot <- ggplot(data = data4bcfpwss, mapping = aes(x = x, y = y), xlab()) +
 #     geom_line( color = "#ee7202", size = 1) +
@@ -2624,16 +2664,16 @@ if(elim=="no"){
 #     geom_vline(xintercept = bcfpwssSup, linetype = "longdash") +
 #     scale_x_continuous(limits = c(bcfpwssInf*0.8, bcfpwssSup/0.8), breaks = c(bcfpwssInf, bcfpwssMed, bcfpwssSup), labels = c(bcfpwssInf, bcfpwssMed, bcfpwssSup))+
 #     scale_y_continuous(limits = c(0,mean(data4bcfpwss[,2])*8))
-#   
+#
 #   # for BCFss quantiles table
 #   bcfpwssRow <- c("<i><b>BCF<sub>pw<sub>ss</sub></sub></i></b>", bcfpwssInf, bcfpwssMed, bcfpwssSup)
 #   bcfpwss <- as.data.frame(bcfpwss)
-#   
+#
 # }
-# 
-# 
+#
+#
 # ### BCFpw TABLE
-# if("pwater" %in% whichexp){
+# if("pore water" %in% whichexp){
 #   bcfpwkTable <- data.frame(matrix(unlist(bcfpwk), ncol = length(bcfpwk), byrow = T))
 #   colnames(bcfpwkTable) <- c("", "2.5%", "50%", "97.5%")
 #   bcfpwTable <- rbind(bcfpwk, bcfpwssRow)
@@ -2643,19 +2683,19 @@ if(elim=="no"){
 #     bcfsslpwRowReport <- c("<b>BCFpw<sub>ss,l</sub></b>", bcfpwssInf*0.05/lipids, bcfpwssMed*0.05/lipids, bcfpwssSup*0.05/lipids, CVpwss)
 #   }
 # }
-# 
-# 
-# 
+#
+#
+#
 # # 8.3. BSAF ####
-# 
+#
 # ###
-# ### BSAFk 
+# ### BSAFk
 # ###
-# 
+#
 # #Only when exposure by sediment
 # #if only one route of exposure
 # #WITHOUT GROWTH
-# 
+#
 # if("sediment" %in% whichexp & elim == "yes"){
 #   if("water" %in% whichexp){
 #     Ubsaf <- m1$sims.list$kus # when several routes of exposure?
@@ -2663,11 +2703,11 @@ if(elim=="no"){
 #     Ubsaf <- m1$sims.list$kus
 #   }
 #   Ebsaf <- m1$sims.list$kee
-#   
+#
 #   #WITHOUT GROWTH
 #   if(elim_growth == "no"){
 #     if(nmet == 0){
-#       bsaf <- Ubsaf/Ebsaf 
+#       bsaf <- Ubsaf/Ebsaf
 #     }
 #     if(nmet != 0){
 #       for(i in 1:nmet){
@@ -2677,11 +2717,11 @@ if(elim=="no"){
 #       }
 #     }
 #   }
-#   
+#
 #   #WITH GROWTH
 #   if(elim_growth == "yes"){
 #     Ebsaf <- m1$sims.list$kee+m1$sims.list$keg
-#     
+#
 #     if(nmet == 0){
 #       bsaf <- m1$sims.list$kus/Ebsaf
 #     }
@@ -2692,15 +2732,15 @@ if(elim=="no"){
 #       bsaf <- Ubsaf/Ebsaf+Mbsaf
 #     }
 #   }
-#   
+#
 #   bsafMed <- round(quantile(bsaf, probs = 0.5), digits = 4)
 #   bsafInf <- round(quantile(bsaf, probs = 0.025), digits = 4)
 #   bsafSup <- round(quantile(bsaf, probs = 0.975), digits = 4)
-#   
-#   
+#
+#
 #   data4bsaf <- with(density(bsaf), data.frame(x, y))
 #   data4bsaf <- na.omit(data4bsaf[is.finite(rowSums(data4bsaf)),])
-#   
+#
 #   bsafPlot <- ggplot(data = data4bsaf, mapping = aes(x = x, y = y), xlab()) +
 #     geom_line( color = "#ee7202", size = 1) +
 #     labs(x = "bsafk", y = "Density") +
@@ -2708,35 +2748,35 @@ if(elim=="no"){
 #     geom_vline(xintercept = bsafInf, linetype = "longdash") +
 #     geom_vline(xintercept = bsafMed, linetype = "longdash") +
 #     geom_vline(xintercept = bsafSup, linetype = "longdash") +
-#     scale_x_continuous(limits = c(bsafInf*0.8, bsafSup/0.8), breaks = c(bsafInf, bsafMed, bsafSup), labels = c(bsafInf, bsafMed, bsafSup)) 
-#   
+#     scale_x_continuous(limits = c(bsafInf*0.8, bsafSup/0.8), breaks = c(bsafInf, bsafMed, bsafSup), labels = c(bsafInf, bsafMed, bsafSup))
+#
 # }
-# 
+#
 # ###
-# ### BSAFss 
+# ### BSAFss
 # ###
-# 
+#
 # if("sediment" %in% whichexp){
 #   #Cpred for steady state (equal at tacc)
 #   Cpredss <- m1$sims.list$Cobsp[,length(vtacc),1]
 #   bsafss <- Cpredss/unique(Cexp$exps)
-#   
+#
 #   #Calculations of BCF at steady state
-#   bsafss <- na.omit(bsafss)   
-#   
+#   bsafss <- na.omit(bsafss)
+#
 #   bsafssMed <- round(quantile(bsafss, probs = 0.5), digits = 4)
 #   bsafssInf <- round(quantile(bsafss, probs = 0.025), digits = 4)
 #   bsafssSup <- round(quantile(bsafss, probs = 0.975), digits = 4)
-#   
+#
 #   if(lipidyn==TRUE){
 #     # for table
 #     bsafklreport <- c("<b>BSAF<sub>k,l</sub></b>", bsafInf*0.05/lipids, bsafMed*0.05/lipids, bsafSup*0.05/lipids, CVs)
 #     bsafsslRowReport <- c("<b>BSAF<sub>ss,l</sub></b>", bsafssInf*0.05/lipids, bsafssMed*0.05/lipids, bsafssSup*0.05/lipids, CVsss)
 #   }
-#   
+#
 #   data4bsafss <- with(density(bsafss), data.frame(x, y))
 #   data4bsafss <- na.omit(data4bsafss[is.finite(rowSums(data4bsafss)),])
-#   
+#
 #   bsafssPlot <- ggplot(data = data4bsafss, mapping = aes(x = x, y = y), xlab()) +
 #     geom_line( color = "#ee7202", size = 1) +
 #     labs(x = "bsafss", y = "Density") +
@@ -2744,21 +2784,21 @@ if(elim=="no"){
 #     geom_vline(xintercept = bsafssInf, linetype = "longdash") +
 #     geom_vline(xintercept = bsafssMed, linetype = "longdash") +
 #     geom_vline(xintercept = bsafssSup, linetype = "longdash") +
-#     scale_x_continuous(limits = c(bsafssInf*0.8, bsafssSup/0.8), breaks = c(bsafssInf, bsafssMed, bsafssSup), labels = c(bsafssInf, bsafssMed, bsafssSup)) 
+#     scale_x_continuous(limits = c(bsafssInf*0.8, bsafssSup/0.8), breaks = c(bsafssInf, bsafssMed, bsafssSup), labels = c(bsafssInf, bsafssMed, bsafssSup))
 # }
-# 
+#
 # # 8.4. BMF ####
-# 
+#
 # ###
 # ### BMFk
 # ###
-# 
+#
 # #Only when exposure by food
-# 
+#
 # if("food" %in% whichexp & elim == "yes"){
 #   if("sediment" %in% whichexp & "water" %in% whichexp){
 #     Ubmf <- m1$sims.list$kuf # when several routes of exposure?
-#   } else { 
+#   } else {
 #     if (length(whichexp) == 2){
 #       Ubmf <- m1$sims.list$kuf
 #     }  else {
@@ -2766,11 +2806,11 @@ if(elim=="no"){
 #     }
 #   }
 #   Ebmf <- m1$sims.list$kee
-#   
+#
 #   #WITHOUT GROWTH
 #   if(elim_growth == "no"){
 #     if(nmet == 0){
-#       bmf <- Ubmf/Ebmf 
+#       bmf <- Ubmf/Ebmf
 #     }
 #     if(nmet != 0){
 #       for(i in 1:nmet){
@@ -2780,11 +2820,11 @@ if(elim=="no"){
 #       }
 #     }
 #   }
-#   
+#
 #   #WITH GROWTH
 #   if(elim_growth == "yes"){
 #     Ebmf <- m1$sims.list$kee+m1$sims.list$keg
-#     
+#
 #     if(nmet == 0){
 #       bmf <- Ubmf/Ebmf
 #     }
@@ -2799,10 +2839,10 @@ if(elim=="no"){
 #   bmfMed <- round(quantile(bmf, probs = 0.5), digits = 4)
 #   bmfInf <- round(quantile(bmf, probs = 0.025), digits = 4)
 #   bmfSup <- round(quantile(bmf, probs = 0.975), digits = 4)
-#   
+#
 #   data4bmf <- with(density(bmf), data.frame(x, y))
 #   data4bmf <- na.omit(data4bmf[is.finite(rowSums(data4bmf)),])
-#   
+#
 #   bmfPlot <- ggplot(data = data4bmf, mapping = aes(x = x, y = y), xlab()) +
 #     geom_line( color = "#ee7202", size = 1) +
 #     labs(x = "bmfk", y = "Density") +
@@ -2810,34 +2850,34 @@ if(elim=="no"){
 #     geom_vline(xintercept = bmfInf, linetype = "longdash") +
 #     geom_vline(xintercept = bmfMed, linetype = "longdash") +
 #     geom_vline(xintercept = bmfSup, linetype = "longdash") +
-#     scale_x_continuous(limits = c(bmfInf*0.8, bmfSup/0.8), breaks = c(bmfInf, bmfMed, bmfSup), labels = c(bmfInf, bmfMed, bmfSup)) 
+#     scale_x_continuous(limits = c(bmfInf*0.8, bmfSup/0.8), breaks = c(bmfInf, bmfMed, bmfSup), labels = c(bmfInf, bmfMed, bmfSup))
 # }
-# 
+#
 # ###
 # ### BMFss
 # ###
-# 
+#
 # if("food" %in% whichexp){
 #   #Cpred for steady state (equal at tacc)
 #   Cpredss <- m1$sims.list$Cobsp[,length(vtacc),1]
-#   
+#
 #   #Calculations of BMF at steady state
 #   bmfss <- Cpredss/unique(Cexp$expf)
-#   bmfss <- na.omit(bmfss)  
-#   
+#   bmfss <- na.omit(bmfss)
+#
 #   bmfssMed <- round(quantile(bmfss, probs = 0.5), digits = 4)
 #   bmfssInf <- round(quantile(bmfss, probs = 0.025), digits = 4)
 #   bmfssSup <- round(quantile(bmfss, probs = 0.975), digits = 4)
-#   
+#
 #   if(lipidyn==TRUE){
 #     # for table
 #     bmfklreport <- c("<b>BMF<sub>k,l</sub></b>", bmfInf*0.05/lipids, bmfMed*0.05/lipids, bmfSup*0.05/lipids, CVf)
 #     bmfsslRowReport <- c("<b>BMF<sub>ss,l</sub></b>", bmfssInf*0.05/lipids, bmfssMed*0.05/lipids, bmfssSup*0.05/lipids, CVfss)
 #   }
-#   
+#
 #   data4bmfss <- with(density(bmfss), data.frame(x, y))
 #   data4bmfss <- na.omit(data4bmfss[is.finite(rowSums(data4bmfss)),])
-#   
+#
 #   bmfssPlot <- ggplot(data = data4bmfss, mapping = aes(x = x, y = y), xlab()) +
 #     geom_line( color = "#ee7202", size = 1) +
 #     labs(x = "bmfss", y = "Density") +
@@ -2845,9 +2885,9 @@ if(elim=="no"){
 #     geom_vline(xintercept = bmfssInf, linetype = "longdash") +
 #     geom_vline(xintercept = bmfssMed, linetype = "longdash") +
 #     geom_vline(xintercept = bmfssSup, linetype = "longdash") +
-#     scale_x_continuous(limits = c(bmfssInf*0.8, bmfssSup/0.8), breaks = c(bmfssInf, bmfssMed, bmfssSup), labels = c(bmfssInf, bmfssMed, bmfssSup)) 
+#     scale_x_continuous(limits = c(bmfssInf*0.8, bmfssSup/0.8), breaks = c(bmfssInf, bmfssMed, bmfssSup), labels = c(bmfssInf, bmfssMed, bmfssSup))
 # }
-# 
+#
 
 # 9. Goodness-of-fit criteria ####
 
@@ -2864,27 +2904,27 @@ Psigma <- data.frame(Parameter = parsigma, Label = parameterssigma)
 # 9.1.1. Extract all de the required data ####
 
 tp0 <- as.numeric(t(data.frame(tp0)))
-qpred4ppc <- Qpred %>% 
+qpred4ppc <- Qpred %>%
   filter(Qpred$time %in% tp0) %>%
   select(2:ncol(Qpred))
 
 data4plot <- as.data.frame(datatabletest)
 data4plot <- data4plot %>%
-  filter(time != 0) 
+  filter(time != 0)
 
 table4ppc <- bind_cols(data4plot, qpred4ppc)
 
 if(elim_growth == "yes"){   #if growth, create an other table for ppc
-  data4plotg <- NULL     
+  data4plotg <- NULL
   data4plotg <- as.data.frame(datatableg)
   data4plotg <- data4plotg %>%
     filter(time != 0)     #exclude values for t=0
   tpg <- as.numeric(t(data.frame(tpg)))
-  
-  qpred4ppcg <- QpredG %>% 
+
+  qpred4ppcg <- QpredG %>%
     filter(QpredG$time %in% tpg) %>%
-    select(2:ncol(QpredG))		
-  
+    select(2:ncol(QpredG))
+
   #create a table for PPC about concentrations of chemicals
   table4ppcg <- bind_cols(data4plotg, qpred4ppcg)
 }
@@ -2892,7 +2932,7 @@ if(elim_growth == "yes"){   #if growth, create an other table for ppc
 
 table4ppc <- table4ppc %>%
   mutate(col = case_when(
-    CpredQ2.5 > conc &&  CpredQ97.5 < conc ~ "out", 
+    CpredQ2.5 > conc &&  CpredQ97.5 < conc ~ "out",
     CpredQ2.5 < conc & CpredQ97.5 > conc ~ "in"))   #ppc data for parent compound
 
 inppc <- format(na.omit(table4ppc$col=="in"))
@@ -2901,34 +2941,34 @@ percentppc <- format(sum(length(inppc))*100/nrow(table4ppc), digits=4)
 if (nmet!=0){  #ppc data for metabolites
   concmi <- table4ppc %>%
     select(starts_with("concm"))
-  
+
   Qinf <- table4ppc %>%
     select(starts_with("Cmetpred") & (ends_with("Q2.5")))
-  
+
   Qsup <- table4ppc %>%
     select(starts_with("Cmetpred") & (ends_with("Q97.5")))
-  
+
   fn <- function(table4ppc, i) {
     varname <- paste("colm", i)
     mutate(table4ppc, !!varname := case_when(
-      Qinf[i] > concmi[i] && Qsup[i] < concmi[i]  ~ "out", 
+      Qinf[i] > concmi[i] && Qsup[i] < concmi[i]  ~ "out",
       Qinf[i] < concmi[i] &  Qsup[i] > concmi[i]  ~ "in"))
   }
-  
+
   inppcm<-NULL
   inppcm2<-NULL
   percentppcm <- NULL
-  
+
   for(i in 1:nmet) {
     table4ppc <- fn(table4ppc, i=i)
     table4ppc[is.na(table4ppc)] <- "out"
     inppcm[i] <- table4ppc %>%
       select(starts_with("colm ") & ends_with(paste0(i)))
-    inppcm <- data.frame(inppcm) 
+    inppcm <- data.frame(inppcm)
     inppcm2[i] <- inppcm[i] %>%
       filter(inppcm[i] == "in")
     percentppcm[i]<- format(sum(length(unlist(inppcm2[i])))*100/nrow(table4ppc), digits=4)
-  }   
+  }
 }
 
 if (elim_growth == "yes"){    #ppc data for growth data
@@ -2953,21 +2993,21 @@ for(k in 1:nplotsppc){
   local({
     k <- k
     if(k == 1){
-      title <- paste0("Parent compound: 
+      title <- paste0("Parent compound:
 
- percentage of data in CI: 
+ percentage of data in CI:
 
 ", percentppc,
                       "% (",sum(length(inppc)), "/", nrow(table4ppc), ")")
     }else{
-      title <- paste0("Metabolite", k-1, ": 
+      title <- paste0("Metabolite", k-1, ":
 
- percentage of data in CI: 
+ percentage of data in CI:
 
  ", percentppcm[k-1],
                       "% (",sum(length(inppcm2[[k-1]])), "/", nrow(table4ppc), ")")
     }
-    
+
     df <- as.data.frame(table4ppc)
     x <- df %>%
       select(starts_with("conc"))
@@ -2979,8 +3019,8 @@ for(k in 1:nplotsppc){
       select(starts_with("C")& ends_with(paste0("Q50")))
     color <- df %>%
       select(starts_with("col"))
-    
-    
+
+
     tmp <- ggplot(data = table4ppc) +
       xlab("Observed concentrations") +
       ylab("Predicted concentrations") +
@@ -2994,7 +3034,7 @@ for(k in 1:nplotsppc){
       theme_classic() +
       theme(plot.title = element_text(hjust = 0.5, size = "25px"), aspect.ratio = 1)+
       labs(x = "Observed concentrations", y = "Predicted concentrations", title = title)
-    
+
     assign(paste0("g", k), tmp, envir = .GlobalEnv)
     plots[[paste0("g", k)]] <<- tmp
   })
@@ -3016,7 +3056,7 @@ if(elim_growth == "yes"){  #ppc for growth
     geom_point(aes(x = growth, y = GpredQ50)) +
     geom_abline(slope = 1, intercept = 0) +
     coord_fixed(ratio = 1) +
-    ggtitle(paste0("Growth: 
+    ggtitle(paste0("Growth:
 
  percentage of data in CI : ", percentppcG,
                    "% (",sum(length(inppcG)), "/", nrow(table4ppcg), ")")) +
@@ -3070,7 +3110,7 @@ probaDistrbution <- function(dat, dat0, mcmctot1, mcmctot0, datn){
 	limits <- c(min(dat)/coef, max(dat)*coef)
 	datDens <- with(density(dat),data.frame(x,y))
 	datDens0 <- with(density(dat0), data.frame(x, y))
-	
+
 	g <- ggplot() +
 		theme_classic() +
 		geom_density(data = mcmctot0, aes(x = log10(dat0)),
@@ -3079,7 +3119,7 @@ probaDistrbution <- function(dat, dat0, mcmctot1, mcmctot0, datn){
 		geom_density(data = mcmctot1, aes(x = log10(dat)),
 					 fill = "orange", color = NA) +
 		xlab(paste0("log10(",datn,")"))
-	
+
 	return(g)
 }
 
@@ -3090,7 +3130,7 @@ probaDistrbutionnotlog10 <- function(dat, dat0, mcmctot1, mcmctot0, datn){
 	limits <- c(min(dat)/coef, max(dat)*coef)
 	datDens <- with(density(dat),data.frame(x,y))
 	datDens0 <- with(density(dat0), data.frame(x, y))
-	
+
 	g <- ggplot() +
 		theme_classic() +
 		geom_density(data = mcmctot0, aes(x = (dat0)),
@@ -3099,7 +3139,7 @@ probaDistrbutionnotlog10 <- function(dat, dat0, mcmctot1, mcmctot0, datn){
 		geom_density(data = mcmctot1, aes(x = (dat)),
 					 fill = "orange", color = NA) +
 		xlab(paste0(datn))
-	
+
 	return(g)
 }
 
@@ -3121,7 +3161,7 @@ plotsparam <- plots
 # plotsparam <- grid.arrange(grobs = plots, ncol=2)
 
 
-plotssigma <- list() 
+plotssigma <- list()
 nplotssto <- length(parsigma) #number of plots for stochastic part
 
 for(k in 1:nplotssto){
@@ -3140,7 +3180,7 @@ for(k in 1:nplotssto){
 # plotssssss <- list(plotsparam, plotssigma) # all
 densityPlotSave <- grid.arrange(grobs = c(plotsparam, plotssigma), ncol=2)
 
-# 
+#
 # nplotsparam <- length(pardet)
 # for(k in 1:nplotsparam){
 # 	dat <- mcmctot1[,k]
@@ -3149,12 +3189,12 @@ densityPlotSave <- grid.arrange(grobs = c(plotsparam, plotssigma), ncol=2)
 # 	dat0 <- mcmctot0[,k]
 # 	datDens0 <- with(density(dat0),data.frame(x,y))
 # 	paramlatex <- getParamPRIOR(pardet[k])
-# 	
+#
 # 	plotsparam[[paste0("g", k)]] <- probaDistrbution(dat, dat0, mcmctot1, mcmctot0, datn, paramlatex)
 # }
 # #png(filename = paste0("FIGS/", filename, "-priors-posteriors.png"), res = 300, units = "cm", width = 20, height = 20)
 # plotsparam <- plotsparam
-# 
+#
 # # plotssigma <- list()
 # nplotssto <- length(parsigma)
 # for(k in 1:nplotssto){
@@ -3167,7 +3207,7 @@ densityPlotSave <- grid.arrange(grobs = c(plotsparam, plotssigma), ncol=2)
 # 	plotssigma[[paste0("g", k)]] <- probaDistrbutionnotlog10(dat, dat0, mcmctot1, mcmctot0, datn, paramlatex)
 # }
 # plotssigma <- plotssigma
-# 
+#
 # densityPlotSave <- grid.arrange(grobs=c(plotsparam, plotssigma), ncol = 2) # all
 
 # densityPlotSave <- grid.arrange(grobs = densityPlot, ncol = 2)
@@ -3177,19 +3217,19 @@ S <- ggs(mcmc1, family="^k|^g|^sigma", par_labels=P) # for all parameters
 Sdet <- ggs(mcmc1, family="^k|^g") # for deterministic parameters
 Ssigma <- ggs(mcmc1, family="sigma", par_labels=Psigma) # for stochastic parameters (at least 2 parameters required)
 Scorr <- S %>% mutate(Parameter = factor(Parameter, levels = parameters)) %>% select(-5)
-Scorrdet <- Sdet %>% mutate(Parameter = factor(Parameter, levels = pardet)) 
+Scorrdet <- Sdet %>% mutate(Parameter = factor(Parameter, levels = pardet))
 
 ggs_pairs(Scorrdet, lower = list(continuous = wrap("density", color = "#ee7202"))) 	# Plot correlations for deterministic parameters
 
 ggs_pairs(Scorr, lower = list(continuous = wrap("density", color = "#ee7202"))) 	# Plot correlations for all parameters
 
-ggs_crosscorrelation(Scorrdet, absolute_scale	= TRUE) + 
+ggs_crosscorrelation(Scorrdet, absolute_scale	= TRUE) +
   scale_fill_gradient(low = "#ee7202", high = "#63ad00", breaks=c(-1,0,1),labels=c(-1,0,1),limits=c(-1,1)) +
   scale_x_discrete(position="top")+
   scale_y_discrete(position="right", limits=rev(pardet)) +
   theme(axis.text.x=element_text(angle = 0, hjust = 0.5), axis.ticks = element_blank()) 	# Plot coloured matrix correlations for deterministic parameters
 
-ggs_crosscorrelation(Scorr, absolute_scale	= TRUE) + 
+ggs_crosscorrelation(Scorr, absolute_scale	= TRUE) +
   scale_fill_gradient(low = "#ee7202", high = "#63ad00", breaks=c(-1,0,1),labels=c(-1,0,1),limits=c(-1,1)) +
   scale_x_discrete(position="top")+
   scale_y_discrete(position="right", limits=rev(parameters)) +
@@ -3199,14 +3239,14 @@ ggs_crosscorrelation(Scorr, absolute_scale	= TRUE) +
 # 9.4.1 Table ####
 Rhat <- as.data.frame(as.matrix(m1$Rhat)) #as a dataframe class
 Rhat <- as.data.frame(as.matrix(Rhat[1:length(params),])) # need to be less than 1.05
-colnames(Rhat) <- c("PSRF") 
+colnames(Rhat) <- c("PSRF")
 psrf <- Rhat
 psrf
 # 9.4.2 Plot ####
-Spsrf <- S %>% mutate(Parameter = factor(Parameter, levels = rev(parameters))) 
+Spsrf <- S %>% mutate(Parameter = factor(Parameter, levels = rev(parameters)))
 ggs_Rhat(Spsrf, greek = TRUE,) +
-  ggtitle(NULL) + 
-  xlab("R_hat") + 
+  ggtitle(NULL) +
+  xlab("R_hat") +
   theme(panel.grid.major = element_line(colour = "#f2f2f2"))
 
 # 9.5. DIC ####
@@ -3222,7 +3262,7 @@ dic
 #                            n.iter = niter,
 #                            n.burnin = 5000,
 #                            n.thin = thin)
-# 
+#
 # samples.m1$p_waic <- samples.m1$WAIC
 # samples.m1$waic <- samples.m1$deviance + samples.m1$p_waic
 # tmp <- sapply(samples.m1, sum)
@@ -3248,7 +3288,7 @@ samples.m1 <- jags.samples(m1.jags$model,
                            n.iter = niter,
                            n.burnin = 5000,
                            n.thin = thin)
-# 
+#
 
  samples.m1$p_waic <- samples.m1$WAIC
  samples.m1$waic <- samples.m1$deviance + samples.m1$p_waic
@@ -3258,7 +3298,7 @@ samples.m1 <- jags.samples(m1.jags$model,
 
 # 9.7. MCMC traces ####
 
-Strace <- S %>% mutate(Parameter = factor(Parameter, levels = parameters)) 
+Strace <- S %>% mutate(Parameter = factor(Parameter, levels = parameters))
 Strace <- S %>% select(-5)
 
 t<-ggs_traceplot(Strace, greek = TRUE,) + scale_colour_manual(values = alpha(c("#333333", "#ee7202", "#63ad00"), 1)) +
@@ -3277,11 +3317,11 @@ if(length(pardet) > 5){
   Straceskm <- ggs(mcmc1, family="^km")
   tracesPlotdetkm <- ggs_traceplot(Straceskm, greek = TRUE,) + scale_colour_manual(values = alpha(c("#333333", "#ee7202", "#63ad00"), 1)) +
     theme(legend.title = element_blank())
-  
+
   Straceskem <- ggs(mcmc1, family="^kem")
   tracesPlotdetkem <- ggs_traceplot(Straceskem, greek = TRUE,) + scale_colour_manual(values = alpha(c("#333333", "#ee7202", "#63ad00"), 1)) +
     theme(legend.title = element_blank())
-  
+
   if(elim_growth == "yes"){
     Stracesk <- ggs(mcmc1, family="^keg|^g|^kee|^ku")
     tracesPlotdetk <- ggs_traceplot(Stracesk, greek = TRUE,) + scale_colour_manual(values = alpha(c("#333333", "#ee7202", "#63ad00"), 1)) +
