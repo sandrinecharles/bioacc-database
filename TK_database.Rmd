@@ -29,7 +29,7 @@ header-includes:
 ```
 
 ```{r setup, include = FALSE}
-knitr::opts_chunk$set(echo = FALSE, warning = FALSE, dpi = 300)
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, dpi = 300) # define the option for the markdown and chunks options
 ```
 
 ```{=html}
@@ -50,6 +50,7 @@ h2 {
 \newcommand{\blandscape}{\begin{landscape}}
 
 ```{r fig-margin, echo = FALSE, align="right"}
+# Load MOSAICbioacc image
 image_link <- function(image,url,...){
   htmltools::a(
     href=url,
@@ -60,15 +61,15 @@ image_link("logo_bioacc.png","http://mosaic.univ-lyon1.fr/bioacc",width="70px",a
 ```
 
 ```{r , include = FALSE}
-
+#Define path
 # Working directory ####
- path <- "www/data/database/"
+path <- "www/data/database/"
 # path of all data sets ####
 pathdata <- "www/data/database/new/"
 # path for all reports ####
 pathreport <- "www/data/database/reports/"
 
-# Packages ####
+# Load packages ####
 library(stringr)
 library(RefManageR)
 library(bibtex)
@@ -108,6 +109,7 @@ If you want to contribute to this database in sharing your raw TK data, please c
 ## Database
 
 ```{r message=FALSE, comment=FALSE, warning=FALSE, echo = FALSE, include=FALSE}
+# define some variables
 if(file.exists("model.txt")) file.remove("model.txt")
 dataset = NULL
 file.name = NULL # gives the name files without format (.txt or .csv)
@@ -209,7 +211,6 @@ for (i in 1:ndata){
 tacc1 <- as.numeric(tacc1)
 
 # Create time units vector
-
 for (i in 1:ndata){
     if(str_detect(duration[i],"years")==TRUE){timeFormat1[i] <-"years"}
     if(str_detect(duration[i],"hours")==TRUE){timeFormat1[i] <-"hours"}
@@ -219,7 +220,6 @@ for (i in 1:ndata){
 
  # EXPOSURE ROUTE ####
     #read exposure route in data set
-
     # All dataset in a list
 for (i in 1:ndata){
   # setwd(path)
@@ -451,6 +451,8 @@ BAF50 <- NULL
 BAF2.5 <- NULL
 BAF97.5 <- NULL
 
+# CALCULATIONS ####
+# read the csv or txt file as MOSAICbioacc requirements
 for (x in 1:ndata){
 	i=x
 	if(str_detect(files[i],".csv")){data[[i]] <-  read_delim(files[i],
@@ -461,20 +463,21 @@ for (x in 1:ndata){
   if(str_detect(files[i],".txt")){data[[i]] <- read_delim(files[i],
                                                       delim = "\t",
                                                       escape_double = FALSE, trim_ws = TRUE)}
-filename <- files[i]
+# obtain the file name for file i
+	filename <- files[i]
+	
+# keep in a data frame the data i
 dataTable <- as_tibble(data[[i]])
-tacc <- as.numeric(tacc1[i])
+tacc <- as.numeric(tacc1[i]) # define time at the end of accumulation phase
 timeFormat <- timeFormat1[i] # Time unit
-source("model_predict.r")
-a <- print(paste0("Coffee is life!", x)) # check if everything is alright in the loop for calculations
-		#generate the report
+source("model_predict.r") # make calculations as MOSAICbioacc do
+#generate the report
 	# Variables for report
 	concFileName <- files[x]
 	nbReplicates <- as.numeric(replicate[x])
 	# knit in format .PDF
 	rmarkdown::render(input = "reportBIOACC_pdf.Rmd",
             output_format = "pdf_document")
-a <- print(paste0("Hot coffee!", x)) # check if everything is alright in the loop for report
 	file.rename(from="reportBIOACC_pdf.pdf",
               to=paste("reports/", file.name[x],".pdf", sep=""))
   # knit in format .HTML
@@ -484,7 +487,7 @@ a <- print(paste0("Hot coffee!", x)) # check if everything is alright in the loo
 	file.rename(from="reportBIOACC_pdf.html",
               to=paste("reports/", file.name[x],".html", sep=""))
 
-
+# prepare the bioaccumulation metric column in the database
 		if("exppw" %in% colnames(dataTable)){BAF.name[x] <- paste0("BCFpw")
 BAF50[x] <- bcfpwMed
 BAF2.5[x] <- 	bcfpwInf
@@ -512,32 +515,28 @@ save(mcmc1, file=paste0(file.name[[x]],".RData"))
  BAF.table <- as.data.frame(cbind(BAF.name,BAF50,BAF2.5,BAF97.5))
  # write.csv(BAF.table,"BAF_table3.csv", row.names = FALSE)
 
-# BAF
+# BAF (which stands for bioaccumulation metrics; i.e. BCF,BSAF or BMF)
 BAF <- NULL
 
 for (i in 1:ndata){
   BAF[i] <- HTML(paste0(BAF.table[i,2]), "</br>", paste0("[",BAF.table[i,3]," - ",BAF.table[i,4],"]"))
 }
-
-
 ```
 
 ```{r message=FALSE, comment=FALSE, warning=FALSE, echo = FALSE, include=FALSE}
-#create the data frame
-
+#create the data frame for the database
 datatable <- NULL
 datatable <- cbind.data.frame(dataset,paste0("<i>",species,"</i>"),  category, substance, duration, exposure, npoint, BAF, report, reference, comments)
 colnames(datatable)<-c("dataset","genus","category", "substance", "duration of accumulation", "exposure route", "n (replicate)","Kinetic biaccumulation factor", "report", "reference", "comments")
 
- write.csv(datatable,"datatable_updte.csv", row.names = FALSE)
-# View(datatable)
-
+ write.csv(datatable,"datatable_updte.csv", row.names = FALSE) # save the file in your folder as a csv format
 ```
 
 ```{r echo=FALSE}
-datatable <- read_csv("datatable_update.csv")
+datatable_update <- read_csv("datatable_update.csv") # read the file you have just written in a folder
 
-DT::datatable(datatable, escape = FALSE, rownames = FALSE, options = list( 
+# create a dynamic datatable with DT package
+DT::datatable(datatable_update, escape = FALSE, rownames = FALSE, options = list( 
   order = list(list(1, 'asc')),
   pageLength=10,fixedHeader = TRUE, fixedHeader.header = TRUE, columnDefs =
                            list(list(className = 'dt-center',

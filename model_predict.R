@@ -2,7 +2,9 @@
 # R code for object generation#
 ###############################
 
-
+###############################
+# Installation of packages ####
+###############################
 # if package 'rjags' not installed, install it
 if(is.element('rjags', installed.packages()[,1]) == FALSE){install.packages('rjags')}
 # Load package 'rjags' which provides an interface from R
@@ -64,8 +66,10 @@ library(jagsUI)
 packageVersion('jagsUI') # check which is your 'jagsUI' version
 # version >= 1.5.1 is required
 
-
-
+##############################
+# Get parameters in LaTex ####
+##############################
+# compute function to obtain parameters in LaTex format (aesthetics)
 getParamLateX <- function(param){
 	if(param == "kuw") param <- "\\(k_{uw}\\)"
 	else if(param == "kus") param <- "\\(k_{us}\\)"
@@ -126,6 +130,7 @@ getParamLateX <- function(param){
 	return(param)
 }
 
+# compute function to obtain prior parameters in LaTex format (aesthetics)
 getParamPRIOR <- function(param){
 	if(param == "kuw") param <- "log_{10}(k_{uw})"
 	else if(param == "kus") param <- "log_{10}(k_{us})"
@@ -185,6 +190,7 @@ getParamPRIOR <- function(param){
 	return(param)
 }
 
+# compute function to obtain goodness-of-fit criteria parameters in LaTex format (aesthetics)
 getParamGOF <- function(param){
 	if(param == "kuw") param <- "k_{uw}"
 	else if(param == "kus") param <- "k_{us}"
@@ -244,6 +250,7 @@ getParamGOF <- function(param){
 	return(param)
 }
 
+# compute function to obtain parameters in LaTex format (aesthetics)
 getParamUnit <- function(param,unit){
 	if(param == "kuw") param = paste0("\\(",substr(unit, 1, 1), "^{-1}\\)")
 	else if(param == "kus") param = paste0("\\(",substr(unit, 1, 1), "^{-1}\\)")
@@ -308,6 +315,7 @@ paramsVectorToLateX <- function(param){
 	return(param)
 }
 
+# compute function to obtain parameters in HTML format (aesthetics)
 getParamHTML <- function(param){
 	if(param == "kuw") param <- "<b>k<sub>uw</sub></b>"
 	else if(param == "kus") param <- "<b>k<sub>us</sub></b>"
@@ -367,6 +375,7 @@ getParamHTML <- function(param){
 	return(param)
 }
 
+# compute function to obtain parameters units in HTML format (aesthetics)
 getParamUnitHTML <- function(param, unit){
 	if(param == "kuw") param = paste0("<i><b>",substr(unit, 1, 1), "<sup>-1</sup></b></i>")
 	else if(param == "kus") param = paste0("<i><b>",substr(unit, 1, 1), "<sup>-1</sup></b></i>")
@@ -426,51 +435,48 @@ getParamUnitHTML <- function(param, unit){
 	else if(param == "sigmaGpred") param = paste0("<i><b>",gunit,"</b></i>")
 }
 
-
+#####################
 # 1. Import data ####
+#####################
+filename <- files[x] # read file name
+dataTable <- as_tibble(data[[x]]) # get a table in a tibble format
+tacc <- as.numeric(tacc1[x]) # get the (numeric) time at the end of the accumulation phase
+timeFormat <- timeFormat1[x] # get the Time unit
 
-filename <- files[x]
-dataTable <- as_tibble(data[[x]])
-tacc <- as.numeric(tacc1[x])
-timeFormat <- timeFormat1[x] # Time unit
-
-# if(str_detect(filename,"Salmo")){
-# 	elim_data <- "no"
-# }
-
+##########################
 # 2. Define variables ####
+##########################
+#Exposure concentration
 Cexp <- dataTable %>%
   filter(time != 0) %>%
-  select(starts_with("exp")) #Exposure concentration
+  select(starts_with("exp")) 
 concexp <- unique(Cexp[[1]])
 
+#File for which there are several exposure concentrations, and select one of them
 if(filename=="Enchytraeus_La_14d_Huang2020.txt"){
 	concexp <- concexp[[6]]
 }else{
 concexp <- concexp[[1]]
 }
-
 if(str_detect("Oliver1983",file.name[x])==TRUE){
 	concexp <- concexp[[1]]	
 	# tacc <- 105 #if concexp[[2]]
 }
-
-# if(filename=="Salmo_1,2,3-TCB_119d_Oliver1983.csv"){
-# 	concexp <- concexp[[2]]
-# }
-
 if(filename=="Enchytraeus_AgNO3_Topuz2015.txt"){
 	concexp <- 0.037
 }
 
-concexp <- concexp[[1]]
+concexp <- concexp[[1]] # define the exposure concentration for the other files by default the first exposure concentration
 
-whichexp <- str_remove(colnames(Cexp), pattern = "exp") # Which exposure routes
+# Define the exposure routes in the data
+whichexp <- str_remove(colnames(Cexp), pattern = "exp") 
 if("w" %in% whichexp) whichexp <- str_replace(whichexp, "w", "water")
 if("s" %in% whichexp) whichexp <- str_replace(whichexp, "s", "sediment")
 if("f" %in% whichexp) whichexp <- str_replace(whichexp, "f", "food") 
 if("pw" %in% whichexp) whichexp <- str_replace(whichexp, "pw", "pore water")
 
+# select data for the selected exposure concentration
+# according the exposure route, select the exposure concentration
 if(length(Cexp)==1){
   if (whichexp == "water"){
     dataTable <- dataTable %>% filter(expw == concexp) }
@@ -480,7 +486,7 @@ if(length(Cexp)==1){
     dataTable <- dataTable %>% filter(expf == concexp) }
   if (whichexp == "pore water"){
     dataTable <- dataTable %>% filter(exppw == concexp) }
-} # select data for the selected exposure concentration
+} 
 
 if (length(Cexp)!=1){
   if (whichexp == "water"){
@@ -490,6 +496,7 @@ if (length(Cexp)!=1){
     Cexp <- Cexp %>%
       filter(expw == concexp)
   }
+  
   # if (whichexp == "sediment"){
   #   dataTable <- dataTable %>%
   #     filter(exps == concexp)
@@ -498,46 +505,25 @@ if (length(Cexp)!=1){
   #     filter(exps == concexp)
   # }
 	
-	
-  
 }
 
+# Definition of priors
 # To define the sigma prior upper limit
 # we select the higher concentration of the data
 # and we multiply it by a number
-
+# in the README file associated publications are given
+# for more information of the model and Bayesian inference framework used
 concmax <- NULL
 max <- max(na.omit(dataTable$conc))
 concmax <- 5*max
 
-# and we have to remove this data
- 
+# and we have to remove this data from the original data set to perform a correct inference
  Cobs <- filter(dataTable, conc!=max(unique(conc)))
- 
-# if(length(dataTable$conc==max)>1){
-# 	testttt <- dataTable %>%
-# 		filter(conc==max)
-# 	testttt <- testttt[-1,]
-# 	
-# 	dataTable2 <- dataTable %>%
-# 		filter_all(any_vars(! is.na(.))) 
-# 	
-# 	dataTable <- filter(dataTable2,dataTable2!=testttt[[1]])
-# 	
-# }else{
-#  
-# dataTable <- dataTable %>%
-#   filter_all(any_vars(! is.na(.))) %>%
-#   filter(is.na(conc)| conc!= max)
-# }
 
 # preparation for priors data about growth data
 if("growth" %in% colnames(dataTable)){
   maxg <- max(na.omit(dataTable$growth))
   gmaxsup <- 3*maxg
-#   dataTable <- dataTable %>%
-#     filter_all(any_vars(! is.na(.))) %>%
-#     filter(is.na(growth)| growth!= maxg)
   }
 
 # All observed internal concentrations for t > 0
@@ -545,11 +531,6 @@ if("growth" %in% colnames(dataTable)){
 datatabletest <- dataTable %>%
   select(time, contains("conc"))
 datatabletest <- na.omit(datatabletest)
-
-#define the number of data for the accumulation phase
-# rankacc <- max(which(datatabletest %>%
-#                        filter_all(any_vars(! is.na(.))) %>%
-#                        select(matches("time")) == tacc)) - nrow(dataTable %>% filter(time == 0))
 
 if(nrow(datatabletest%>%filter(time==tacc))!=0){
 	rankacc <- max(which(datatabletest %>%
@@ -562,7 +543,6 @@ if(nrow(datatabletest%>%filter(time==tacc))!=0){
 	rankacc <- max(which(datatabletest %>%
 						  	filter_all(any_vars(! is.na(.))) %>%
 						  	select(matches("time")) == tacc2)) - nrow(datatabletest %>% filter(time == 0))
-	
 }
 
 #Select bioaccumulation data without NA values 
@@ -575,8 +555,6 @@ tp <- tp0 %>% filter(time != 0) # for t > 0
 tp <- as.numeric(t(data.frame(tp)))
 
 # Variables for time points
-# tp0 <- dataTable["time"] # all
-# tp <- tp0 %>% filter(time != 0) # for t > 0
 lentp <- length(tp)
 
 # create time variables for predictions
@@ -685,7 +663,7 @@ if(elim_growth == "yes"){
 }
 
 
-# prepare data in the good format
+# prepare data in the good format for the next step
 Cobs <- data.frame(Cobs)
 concmax <- data.frame(concmax)
 tp <- as.numeric(t(data.frame(tp)))
@@ -726,8 +704,12 @@ if(elim_growth == "yes"){
   )
 }
 
-
+###############
 # 3. MODEL ####
+###############
+# For more information, please read the README file provided with this file
+# especially our companion paper:
+# Charles, S., Ratier, A., Lopes, C. Generic Solving of One-compartment Toxicokinetic Models. Journal of Exploratory Research in Pharmacology. Published online: Sep 30, 2021. doi: 10.14218/JERP.2021.00024.
 
 #3.1. CREATE SYMBOLS ####
 
@@ -783,6 +765,7 @@ if(is.null(whichelim)){
 if(length(pardet) == 0) "warning" # length(pardet) must be 1 at the minimum
 
 ### Additional symbols
+# elimination
 E <- NULL
 if(nelim != 0){
   for(j in 1:nelim){
@@ -793,12 +776,14 @@ if(nelim != 0){
   E <- 0
 }
 
+# biotransformation
 M <- NULL
 for(l in 1:nmet){
   M <- paste0(M, str_c(parkm, "+")[l])
 }
 M <- str_sub(M, end = nchar(M)-1)
 
+# elimination and biotransformation process
 D <- NULL # defined here as a vector for all metabolites
 if (nelim == 0){
   if(nmet == 0) {
@@ -821,10 +806,10 @@ if (nelim == 0){
 
 ### Create variable names for internal concentrations
 varp <- "Cpred" # predicted parent compound (C_p(t) in equations)
+vn <- varp # for the loop create an other vector
 varmet <- NULL # predicted metabolites
 varG <- NULL # predicted metabolites
 
-vn <- varp
 if(met == "yes"){
   for(l in 1:nmet){
     varmet[l] <- paste0("Cmetpred", l) # (Cm_/ell(t) in equations)
@@ -843,7 +828,7 @@ if(elim_growth == "yes" & met == "no") {
 }
 
 
-### Create parameters for the stochastic part (sigma)
+### Create parameters for the stochastic part (sigma parameters)
 parsigma <- paste0("sigma", varp) # minimal requirement
 if(met == "yes"){
   for(l in 1:length(varmet)){
@@ -858,6 +843,8 @@ if(elim_growth == "yes"){
 params <- c(pardet, parsigma)
 
 #3.2. PRIORS ####
+# write priors according jags
+# text creation for priors
 priors <- NULL
 for(i in 1:nexp){
   tmp <- paste0("log10", parkexp[i], " ~ dunif(-5, 5)
@@ -888,7 +875,6 @@ if(nelim !=0){
     }
   }
   for(k in (nexp+nelim+nmet+1):(nexp+nelim+nmet+length(parsigma))){
-    # tmp <- paste0(parsigma[k-nexp-nelim-nmet], " ~ dunif(0,", concmax[k-nexp-nelim-nmet],")
     tmp <- paste0(parsigma[k-nexp-nelim-nmet], " ~ dunif(0,", concmax[,1],")
 ")
     priors <- paste0(priors, tmp, "tau", str_remove(parsigma[k-nexp-nelim-nmet], "sigma"), " <- 1/(",
@@ -910,7 +896,6 @@ if(nelim !=0){
     }
   }
   for(k in (nexp+nmet+1):(nexp+nmet+length(parsigma))){
-    # tmp <- paste0(parsigma[k-nexp-nmet], " ~ dunif(0, ", concmax[k-nexp-nelim-nmet],")
     tmp <- paste0(parsigma[k-nexp-nmet], " ~ dunif(0, ", concmax[,1],")
 
 ")
@@ -932,7 +917,8 @@ g0 ~ dunif(0, gmaxsup)
 }
 
 #3.3. EQUATIONS ####
-
+# write equations according jags requirements
+# uptake
 accumulation <- "for(t in 1:rankacc){
 "
 U <- NULL
@@ -995,6 +981,7 @@ if(nmet!=0){
 }
 accumulation <- paste0(accumulation, "}")
 
+# elimination
 depuration <- "for(t in rankacc1:lentp){
 "
 U <- NULL
@@ -1059,6 +1046,7 @@ if(nmet!=0){
 }
 depuration <- paste0(depuration, "}")
 
+# growth
 growtheq <- paste0(" ")
 
 if(elim_growth == "yes"){
@@ -1218,7 +1206,7 @@ if(elim_growth == "yes"){
 }
 
 #3.5. MODEL WRITING ####
-
+# write the priors, model and predictions in a .txt file in agreement with JAGS
 if(file.exists("model.txt")) file.remove("model.txt")
 path.model <- "model.txt"
 if(elim_data=="yes" & elim_growth=="yes"){
@@ -1347,10 +1335,11 @@ if(elim_data == "no" & elim_growth=="no"){
 }
 
 write_file(model, path.model, append = TRUE)
-rm(accumulation, depuration, priors)
+rm(accumulation, depuration, priors) # remove from the R environment unnecessary text objects
 
-
+###################
 # 4. INFERENCE ####
+###################
 
 # 4.1. MODEL INITIALIZATION ####
 
@@ -1375,20 +1364,24 @@ niter <- max(resmatrixtot[,"Nmin"]) * thin
 rm(resmatrixtot, RD)
 
 #create the vector of parameters to estimate for predicitons
+
+# no excretion
 if(elim_data == "no"){
   add_params <- "Cobsp"
+  #with gowth
   if (elim_growth == "yes"){
     add_params <- c("Cobsp","Gobsp")
   }
 }
 
+  # with excretion elimination
 if(elim_data == "yes"){
   add_params <- c("Cobsp","Cobspdep")
-  
+  # with growth
   if(elim_growth == "yes"){
     add_params <- c("Cobsp","Cobspdep", "Gobsp")
   }
-  
+  #if biotransformation
   if (nmet !=0){
     namemetp <- NULL
     
@@ -1401,6 +1394,7 @@ if(elim_data == "yes"){
       namemetpdep[k] <- paste0("Cobspdep",k+1)
     }
     add_params <- c("Cobsp","Cobspdep", namemetp, namemetpdep)
+    # with growth
     if(elim_growth == "yes"){
       add_params <- c("Cobsp","Cobspdep", namemetp, namemetpdep ,"Gobsp")
     }
@@ -1424,13 +1418,16 @@ m1 <- jagsUI::jags(data = data4fit,
                    n.cores = 3, #if parallel = TRUE
                    DIC = TRUE)
 
+############################
 # 5. EXPORT PREDICTIONS ####
+############################
 
-mcmc1 <- m1$samples
-mcmctot1 <- as.data.frame(as.matrix(mcmc1))
+# collect all results
+mcmc1 <- m1$samples 
+mcmctot1 <- as.data.frame(as.matrix(mcmc1)) # combine the 3 MCMC in a matric format
 
+time <- vt # time for predictions
 # create a matrix Qpred for the collection of all predictions
-time <- vt
 Qpred <- NULL
 Qpred <- matrix(NA, nrow = length(vt), ncol = (length(vn)*3)+1)
 
@@ -1440,7 +1437,7 @@ if(elim_data == "no"){
   colnames(Cpred) <- c("CpredQ2.5", "CpredQ50", "CpredQ97.5")
   Qpred <- cbind(time, Cpred)
 
-  if(elim_growth == "yes"){
+if(elim_growth == "yes"){
     time <- vtg
     Gpred <- cbind(m1$q2.5$Gobsp, m1$q50$Gobsp, m1$q97.5$Gobsp)
     Gpred <- as.data.frame(Gpred)
@@ -1448,7 +1445,6 @@ if(elim_data == "no"){
     QpredG <- cbind(time, Gpred)
   }
 }
-
 if(elim_data == "yes"){
   Cpredp <- cbind(m1$q2.5$Cobsp, m1$q50$Cobsp, m1$q97.5$Cobsp)
   Cpred <- as.data.frame(Cpredp)
@@ -1458,8 +1454,7 @@ if(elim_data == "yes"){
   Cpred <- as.data.frame(rbind(Cpredp,Cpreddep))
   colnames(Cpred) <- c("CpredQ2.5", "CpredQ50", "CpredQ97.5")
   Qpred <-  cbind(time,Cpred)
-
-  if(nmet!=0){
+if(nmet!=0){
     for(k in 1:nmet){
       Cpredpm1 <- cbind(m1$q2.5[[paste0("Cobsp",k+1)]][,k+1], m1$q50[[paste0("Cobsp",k+1)]][,k+1], m1$q97.5[[paste0("Cobsp",k+1)]][,k+1])
       Cpreddepm1 <- cbind(m1$q2.5[[paste0("Cobspdep",k+1)]][,k+1], m1$q50[[paste0("Cobspdep",k+1)]][,k+1], m1$q97.5[[paste0("Cobspdep",k+1)]][,k+1])
@@ -1477,26 +1472,24 @@ if(elim_data == "yes"){
     colnames(Gpred) <- c("GpredQ2.5", "GpredQ50", "GpredQ97.5")
     QpredG <-  cbind(time,Gpred)
   }
-
 }
-
 
 # if negative values in Qpred, replace by 0
 Qpred[Qpred < 0] <- 0
 
-# for QpredG
+# for growth predictions: QpredG
 if(elim_growth == "yes"){
   QpredG[QpredG < 0] <- 0
 }
 
-
+#######################
 # 6. FITTING PLOTS ####
+#######################
 
 # One plot per measured concentration:
 # Parent compound: always
 # Metabolites if met == "yes"
 # Add a plot if elim_growth == "yes" (in growth)
-
 
 if(elim_growth == "yes"){
   data2plot <- dataTable %>%
@@ -1550,7 +1543,6 @@ for(k in 1:nplots){
   fitPlot <<- plots
 }
 grid.arrange(grobs = plots, ncol = 1)
-# fitPlotmet <<- plots[-1]
 
 # plot if there is growth dilution
 if(elim_growth == "yes"){
@@ -1580,10 +1572,11 @@ if(elim_growth == "yes"){
 }
 # grid.arrange(grobs=fitPlot, ncol = 1)
 
-
+##########################
 # 7. PARAMETERS TABLE ####
+##########################
 
-#all estimates for parameters (3 MCMC chains)
+# all estimates for parameters (3 MCMC chains)
 # m1$sims.list
 testparameters <- as.data.frame(as.matrix(as.data.frame(m1$sims.list))) #parameters in columns and estimates in rows
 testparameters <- testparameters[,1: length(params)] #equal to mcmctot1 in old beta version (without predictions)
@@ -1600,15 +1593,9 @@ quantilesTable
 #graphical representations for parameters (if required)
 whiskerplot(m1, params, quantiles=c(0.025,0.975), zeroline=TRUE)
 
-
-
-
-
-
-
-
-
+#################################
 # 8. BIOACCUMULATION FACTORS ####
+#################################
 
 lenp <<- nrow(mcmctot1)
 ### if BCF directly estimated in the inference process
@@ -1807,7 +1794,7 @@ if(elim=="no"){
 # 		scale_y_continuous(limits = c(0,mean(data4bcfss[,2])*8))
 
 
-	#for report markdown
+	#for report file markdown as provided by MOSAICbioacc
 	bcfkTablereport <<- data.frame(matrix(unlist(bcfkreport), ncol = 5, byrow = T))
 	colnames(bcfkTablereport) = c("", "2.5%", "50%", "97.5%", "CV")
 	# bcfTablereport <<- rbind(bcfkreport,bcfssRowReport)
@@ -2015,7 +2002,7 @@ if("pore water" %in% whichexp){
 	bcfpwkTable <- data.frame(matrix(unlist(bcfpwk), ncol = length(bcfpwk), byrow = T))
 	colnames(bcfpwkTable) <- c("", "2.5%", "50%", "97.5%")
 	# bcfpwTable <<- rbind(bcfpwk, bcfpwssRow)
-	#for report markdown
+	#for report file markdown as provided by MOSAICbioacc
 	bcfpwkTablereport <- data.frame(matrix(unlist(bcfpwkreport), ncol = length(bcfpwk), byrow = T))
 	colnames(bcfpwkTablereport) = c("", "2.5%", "50%", "97.5%", "CV")
 	# bcfpwTablereport <<- rbind (bcfpwkreport,bcfpwssRowReport)
@@ -2207,7 +2194,7 @@ if(elim=="no"){
 # 		scale_x_continuous(limits = c(bsafssInf*0.8, bsafssSup/0.8), breaks = c(bsafssInf, bsafssMed, bsafssSup), labels = c(bsafssInf, bsafssMed, bsafssSup))
 #
 	if("sediment" %in% whichexp){
-	#for report markdown
+	  #for report file markdown as provided by MOSAICbioacc
 	bsafkTablereport <<- data.frame(matrix(unlist(bsafkReport), ncol = length(bsafk), byrow = T))
 	colnames(bsafkTablereport) = c("", "2.5%", "50%", "97.5%", "CV")
 	# bsafTablereport <<- rbind (bsafkReport,bsafssRowReport)
@@ -2400,7 +2387,7 @@ if(elim=="no"){
 # 	bmfssRowReport <<- c("<b>BMF<sub>ss</sub></b>", bmfssInf, bmfssMed, bmfssSup,CVfss)
 #
 	if("food" %in% whichexp){
-	#for report markdown
+	  #for report file markdown as provided by MOSAICbioacc
 	bmfkTablereport <<- data.frame(matrix(unlist(bmfkReport), ncol = length(bmfk), byrow = T))
 	colnames(bmfkTablereport) = c("", "2.5%", "50%", "97.5%", "CV")
 	# bmfTablereport <<- rbind (bmfkReport,bmfssRowReport)
@@ -2889,8 +2876,9 @@ if(elim=="no"){
 # }
 #
 
+##################################
 # 9. Goodness-of-fit criteria ####
-
+##################################
 
 parameters <- str_replace(params, "sigmaCpred","sigmaCp") # Get parameters for GOF
 parameters <- str_replace(parameters, "sigmaCmet","sigmaCm")
